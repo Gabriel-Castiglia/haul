@@ -1,14 +1,14 @@
-# Descargador
+# Haul
 
 Gabriel Castiglia · 19 de octubre de 2026 · versión 1.0.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
-Repositorio: <https://github.com/Gabriel-Castiglia/descargador>
+Repositorio: <https://github.com/Gabriel-Castiglia/haul>
 
-Manual en PDF: [`docs/Descargador-manual-es.pdf`](docs/Descargador-manual-es.pdf)
+Manual en PDF: [`docs/Haul-manual-es.pdf`](docs/Haul-manual-es.pdf)
 
-Descargador es una aplicación de macOS que descarga video y audio de YouTube y de los demás sitios
+Haul es una aplicación de macOS que descarga video y audio de YouTube y de los demás sitios
 compatibles con [yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
 el progreso y organiza una cola de descargas. El trabajo lo hacen yt-dlp, incluido en la aplicación
 en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés y en castellano, y se elige en el menú Language (Idioma cuando
@@ -26,8 +26,8 @@ hay que instalar nada a mano.
 ## Instalación
 
 ```
-git clone https://github.com/Gabriel-Castiglia/descargador.git
-cd descargador
+git clone https://github.com/Gabriel-Castiglia/haul.git
+cd haul
 scripts/instalar.sh
 ```
 
@@ -36,7 +36,7 @@ El instalador:
 1. instala Python, deno y ffmpeg con Homebrew o, si ya están, los actualiza;
 2. compila la aplicación, comprueba el yt-dlp incluido contra sus sumas oficiales y firma la
    aplicación con la identidad local (ver «Firma y permisos»);
-3. la copia a `/Applications/Descargador.app`, cerrándola antes si estaba abierta.
+3. la copia a `/Applications/Haul.app`, cerrándola antes si estaba abierta.
 
 Volver a ejecutarlo es la forma de actualizar todo: dependencias y aplicación.
 
@@ -58,7 +58,7 @@ canceladas se pueden reintentar o quitar. La salida completa de yt-dlp está en 
 También se puede iniciar con enlaces desde la Terminal o desde Atajos:
 
 ```
-open -a Descargador --args --descargar URL1 URL2
+open -a Haul --args --descargar URL1 URL2
 ```
 
 ## Formatos
@@ -76,7 +76,7 @@ apunta a una lista de reproducción descarga solo ese video.
 
 | Ruta | Contenido |
 |---|---|
-| `fuentes/Descargador.swift` | Código de la aplicación (SwiftUI, un solo archivo) |
+| `fuentes/Haul.swift` | Código de la aplicación (SwiftUI, un solo archivo) |
 | `icono/icono.html` | Ícono en SVG |
 | `icono/icono-1024.png` | Ícono renderizado, origen de todos los tamaños |
 | `scripts/instalar.sh` | Dependencias, compilación e instalación |
@@ -85,7 +85,7 @@ apunta a una lista de reproducción descarga solo ese video.
 | `scripts/manual.sh` | Genera los manuales en PDF a partir de los README |
 | `scripts/actualizar-yt-dlp.sh` | Reemplaza el yt-dlp incluido por otra versión verificada |
 | `vendor/yt-dlp/` | Copia incluida de yt-dlp 2026.08.19, con código fuente, sumas, firma y licencias |
-| `docs/Descargador-manual-es.pdf`, `docs/Descargador-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
+| `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
 | `docs/manual.css` | Estilo de los manuales |
 | `README.es.md`, `README.md` | Esta documentación, en castellano y en inglés |
 
@@ -95,13 +95,13 @@ La carpeta `build/` se genera al compilar y no forma parte del repositorio.
 
 macOS guarda los permisos que el usuario concede, como el acceso a Descargas o al portapapeles,
 asociados a la firma de la aplicación. Una firma ad hoc cambia en cada compilación y macOS vuelve a
-pedirlos. Por eso el proyecto firma con un certificado propio y estable, «Descargador (firma
-local)», que `scripts/firma.sh` crea la primera vez en la Mac donde se compila:
+pedirlos. Por eso el proyecto firma con un certificado propio y estable, «Haul (local
+signing)», que `scripts/firma.sh` crea la primera vez en la Mac donde se compila:
 
 - el certificado y su clave quedan en un llavero dedicado,
-  `~/Library/Keychains/descargador-firma.keychain-db`;
+  `~/Library/Keychains/haul-signing.keychain-db`;
 - la contraseña de ese llavero queda en el llavero de inicio de sesión, con el nombre
-  `descargador-firma-local`.
+  `haul-local-signing`.
 
 Con esa firma, los permisos concedidos una vez se mantienen entre versiones. El certificado solo
 existe en la Mac donde se creó: una copia ya compilada que se lleve a otra Mac se abre la primera
@@ -130,10 +130,10 @@ Si el Dock conserva el ícono anterior, hay que quitar la aplicación del Dock y
 
 ## Mantenimiento
 
-Descargador está hecho y probado con yt-dlp 2026.08.19, y esa copia exacta viaja dentro de la
+Haul está hecho y probado con yt-dlp 2026.08.19, y esa copia exacta viaja dentro de la
 aplicación. Una versión fija mantiene estable el comportamiento y no depende de que el repositorio
 de yt-dlp siga en línea. La contra es que YouTube cambia seguido y, tarde o temprano, una versión
-fija deja de funcionar con él. Cuando eso pase, una versión nueva de Descargador pasa a un yt-dlp
+fija deja de funcionar con él. Cuando eso pase, una versión nueva de Haul pasa a un yt-dlp
 más reciente:
 
 ```
@@ -150,8 +150,8 @@ Los errores más frecuentes de yt-dlp se muestran con un texto claro en el idiom
 lo emite yt-dlp.
 
 Las preferencias (idioma, carpeta, formato, tamaño de la ventana) se guardan en el dominio
-`io.github.gabriel-castiglia.descargador`. Se restablecen con
-`defaults delete io.github.gabriel-castiglia.descargador`.
+`io.github.gabriel-castiglia.haul`. Se restablecen con
+`defaults delete io.github.gabriel-castiglia.haul`.
 
 ## Notas técnicas
 
@@ -175,9 +175,9 @@ ignora `.defaultSize`, y el tamaño inicial de la ventana se fija desde AppKit e
 
 ## Créditos
 
-Descargador es una interfaz; el trabajo de fondo es de estos proyectos:
+Haul es una interfaz; el trabajo de fondo es de estos proyectos:
 
-| Proyecto | Papel en Descargador | Licencia |
+| Proyecto | Papel en Haul | Licencia |
 |---|---|---|
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp), de los colaboradores de yt-dlp, fork de youtube-dl | Motor de descarga, incluido en `vendor/yt-dlp` | [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE) |
 | [yt-dlp-ejs](https://github.com/yt-dlp/ejs), dentro del ejecutable de yt-dlp | Resuelve los desafíos JavaScript de YouTube | Unlicense |
@@ -196,11 +196,11 @@ dentro de la aplicación, en `Contents/Resources/licenses/`.
 
 Copyright (C) 2026 Gabriel Castiglia.
 
-Descargador es software libre, distribuido bajo la Licencia Pública General de GNU, versión 2
+Haul es software libre, distribuido bajo la Licencia Pública General de GNU, versión 2
 (GPL-2.0-only), la misma del núcleo Linux. Se puede usar, estudiar, modificar y redistribuir; toda
 versión modificada que se distribuya debe publicarse bajo la misma licencia y con su código
 fuente. El texto completo está en [`LICENSE`](LICENSE).
 
-Descargador incluye una copia sin modificar de yt-dlp en `vendor/yt-dlp`, que conserva sus propias
-licencias (Unlicense, con componentes ISC y MIT) y no queda cubierta por la GPL. Descargador ejecuta
+Haul incluye una copia sin modificar de yt-dlp en `vendor/yt-dlp`, que conserva sus propias
+licencias (Unlicense, con componentes ISC y MIT) y no queda cubierta por la GPL. Haul ejecuta
 yt-dlp y ffmpeg como programas aparte y no los enlaza; ffmpeg no se incluye.

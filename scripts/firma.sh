@@ -1,4 +1,4 @@
-# firma.sh: stable local code-signing identity for Descargador.
+# firma.sh: stable local code-signing identity for Haul.
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: October 19, 2026
@@ -19,9 +19,9 @@
 #
 # This file is sourced by compilar.sh; it is not meant to be run on its own.
 
-IDENTIDAD="Descargador (firma local)"
-LLAVERO="$HOME/Library/Keychains/descargador-firma.keychain-db"
-SERVICIO="descargador-firma-local"
+IDENTIDAD="Haul (local signing)"
+LLAVERO="$HOME/Library/Keychains/haul-signing.keychain-db"
+SERVICIO="haul-local-signing"
 OPENSSL=/usr/bin/openssl   # system LibreSSL: produces PKCS#12 files that `security import` accepts
 
 preparar_firma() {

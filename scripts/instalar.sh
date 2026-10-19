@@ -1,5 +1,5 @@
 #!/bin/zsh
-# instalar.sh: installs or updates the dependencies, builds Descargador and copies it to /Applications.
+# instalar.sh: installs or updates the dependencies, builds Haul and copies it to /Applications.
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: October 19, 2026
@@ -19,7 +19,7 @@
 set -euo pipefail
 RAIZ="${0:A:h:h}"
 BREW=/opt/homebrew/bin/brew
-DESTINO=/Applications/Descargador.app
+DESTINO=/Applications/Haul.app
 
 if [[ ! -x $BREW ]]; then
     echo "Homebrew is missing. See https://brew.sh" >&2
@@ -42,10 +42,10 @@ done
 "$RAIZ/scripts/compilar.sh"
 
 # Quit the app if it is running before replacing it.
-osascript -e 'if application "Descargador" is running then tell application "Descargador" to quit' >/dev/null 2>&1 || true
+osascript -e 'if application "Haul" is running then tell application "Haul" to quit' >/dev/null 2>&1 || true
 
 rm -rf "$DESTINO"
-ditto "$RAIZ/build/Descargador.app" "$DESTINO"
+ditto "$RAIZ/build/Haul.app" "$DESTINO"
 touch "$DESTINO"   # makes the Finder and the Dock refresh the icon
 
 echo

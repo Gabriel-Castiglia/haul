@@ -3,7 +3,7 @@
 English · [Español](README.es.md)
 
 This folder holds an unmodified copy of [yt-dlp](https://github.com/yt-dlp/yt-dlp) version
-2026.08.19. Descargador is built and tested with this exact version and runs it from inside the
+2026.08.19. Haul is built and tested with this exact version and runs it from inside the
 app, so its behavior does not change when yt-dlp publishes a new release, and the project keeps
 working even if the upstream repository becomes unavailable.
 
@@ -46,7 +46,7 @@ The zipimport executable and the source tarball also include
 - [astring](https://github.com/davidbonnet/astring), MIT license, copyright David Bonnet
   (`licenses/astring-LICENSE`).
 
-These files keep their own licenses. Descargador's GPL-2.0-only license does not apply to them.
+These files keep their own licenses. Haul's GPL-2.0-only license does not apply to them.
 
 ## Updating
 

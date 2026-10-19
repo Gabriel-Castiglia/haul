@@ -3,7 +3,7 @@
 [English](README.md) · Español
 
 Esta carpeta contiene una copia sin modificar de [yt-dlp](https://github.com/yt-dlp/yt-dlp),
-versión 2026.08.19. Descargador está hecho y probado con esa versión exacta y la ejecuta desde
+versión 2026.08.19. Haul está hecho y probado con esa versión exacta y la ejecuta desde
 dentro de la aplicación. Así su comportamiento no cambia cuando yt-dlp publica una versión nueva, y
 el proyecto sigue funcionando aunque el repositorio original deje de estar disponible.
 
@@ -46,7 +46,7 @@ El ejecutable zipimport y el código fuente incluyen además
 - [astring](https://github.com/davidbonnet/astring), licencia MIT, copyright de David Bonnet
   (`licenses/astring-LICENSE`).
 
-Estos archivos conservan sus propias licencias; la licencia GPL-2.0-only de Descargador no se les
+Estos archivos conservan sus propias licencias; la licencia GPL-2.0-only de Haul no se les
 aplica.
 
 ## Actualización

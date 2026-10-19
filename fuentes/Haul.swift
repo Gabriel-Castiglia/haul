@@ -1,6 +1,6 @@
 //
-//  Descargador.swift
-//  Descargador: a graphical front end for yt-dlp on macOS.
+//  Haul.swift
+//  Haul: a graphical front end for yt-dlp on macOS.
 //
 //  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 //  Date: October 19, 2026
@@ -708,7 +708,7 @@ struct Ventana: View {
         .containerBackground(.thinMaterial, for: .window)
         .onAppear {
             // Launching with links from Terminal or Shortcuts:
-            //   open -a Descargador --args --descargar URL [URL…]
+            //   open -a Haul --args --descargar URL [URL…]
             let args = CommandLine.arguments
             if let i = args.firstIndex(of: "--descargar") {
                 cola.texto = args[(i + 1)...].joined(separator: "\n")
@@ -737,7 +737,7 @@ struct Ventana: View {
                 .frame(width: 64, height: 64)
                 .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Descargador")
+                Text("Haul")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                 Text(tr("Videos y música de YouTube y casi cualquier sitio", "Video and music from YouTube and almost any site"))
                     .foregroundStyle(.secondary)
@@ -885,23 +885,23 @@ final class Delegado: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         DispatchQueue.main.async {
             guard let w = NSApp.windows.first else { return }
-            if !w.setFrameUsingName("Descargador") {
+            if !w.setFrameUsingName("Haul") {
                 let alto = min(800, (w.screen?.visibleFrame.height ?? 800) - 40)
                 w.setContentSize(NSSize(width: 640, height: alto))
                 w.center()
             }
-            w.setFrameAutosaveName("Descargador")
+            w.setFrameAutosaveName("Haul")
         }
     }
 }
 
 @main
-struct DescargadorApp: App {
+struct HaulApp: App {
     @NSApplicationDelegateAdaptor(Delegado.self) var delegado
     @StateObject private var ajustes = Ajustes.shared
 
     var body: some Scene {
-        Window("Descargador", id: "principal") { Ventana() }
+        Window("Haul", id: "principal") { Ventana() }
             .windowStyle(.hiddenTitleBar)
             .windowResizability(.contentMinSize)
             .commands {

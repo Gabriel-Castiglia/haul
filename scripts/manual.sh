@@ -1,7 +1,7 @@
 #!/bin/zsh
 # manual.sh: builds the PDF manuals from the READMEs.
-#   README.md     -> docs/Descargador-manual-en.pdf
-#   README.es.md  -> docs/Descargador-manual-es.pdf
+#   README.md     -> docs/Haul-manual-en.pdf
+#   README.es.md  -> docs/Haul-manual-es.pdf
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: October 19, 2026
@@ -18,7 +18,7 @@ set -euo pipefail
 RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 
-REPO="https://github.com/Gabriel-Castiglia/descargador"
+REPO="https://github.com/Gabriel-Castiglia/haul"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc" >&2; exit 1; }
@@ -32,7 +32,7 @@ cat > "$TEMPORAL/portada.html" <<HTML
 <div class="portada">
   <img src="icono/icono-1024.png" alt="">
   <div>
-    <p class="nombre">Descargador</p>
+    <p class="nombre">Haul</p>
     <p class="repo"><a href="$REPO">${REPO#https://}</a></p>
   </div>
 </div>
@@ -65,5 +65,5 @@ generar() {
     echo "Manual: $salida"
 }
 
-generar README.md    en "Descargador · Manual"            docs/Descargador-manual-en.pdf
-generar README.es.md es "Descargador · Manual de usuario" docs/Descargador-manual-es.pdf
+generar README.md    en "Haul · Manual"            docs/Haul-manual-en.pdf
+generar README.es.md es "Haul · Manual de usuario" docs/Haul-manual-es.pdf

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# compilar.sh: builds Descargador and produces a signed build/Descargador.app.
+# compilar.sh: builds Haul and produces a signed build/Haul.app.
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: October 19, 2026
@@ -18,23 +18,23 @@ source scripts/firma.sh
 
 VERSION="1.0.0"
 COMPILACION="1"
-APP="build/Descargador.app"
+APP="build/Haul.app"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # 1. Binary
 swiftc -O -swift-version 5 -parse-as-library \
-    -o "$APP/Contents/MacOS/Descargador" fuentes/Descargador.swift
+    -o "$APP/Contents/MacOS/Haul" fuentes/Haul.swift
 
 # 2. Icon: every size macOS expects, generated from the 1024 px PNG
-SET="$(mktemp -d)/Descargador.iconset"
+SET="$(mktemp -d)/Haul.iconset"
 mkdir -p "$SET"
 for t in 16 32 128 256 512; do
     sips -z $t $t icono/icono-1024.png --out "$SET/icon_${t}x${t}.png" >/dev/null
     sips -z $((t * 2)) $((t * 2)) icono/icono-1024.png --out "$SET/icon_${t}x${t}@2x.png" >/dev/null
 done
-iconutil -c icns "$SET" -o "$APP/Contents/Resources/Descargador.icns"
+iconutil -c icns "$SET" -o "$APP/Contents/Resources/Haul.icns"
 rm -rf "${SET:h}"
 
 # 3. Bundled yt-dlp: verify it against the official checksums, then copy it with its licenses
@@ -46,7 +46,7 @@ fi
 cp vendor/yt-dlp/yt-dlp "$APP/Contents/Resources/yt-dlp"
 mkdir -p "$APP/Contents/Resources/licenses"
 cp vendor/yt-dlp/licenses/* "$APP/Contents/Resources/licenses/"
-cp LICENSE "$APP/Contents/Resources/licenses/Descargador-LICENSE"
+cp LICENSE "$APP/Contents/Resources/licenses/Haul-LICENSE"
 
 # 4. Info.plist
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -54,11 +54,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Descargador</string>
-    <key>CFBundleDisplayName</key><string>Descargador</string>
-    <key>CFBundleIdentifier</key><string>io.github.gabriel-castiglia.descargador</string>
-    <key>CFBundleExecutable</key><string>Descargador</string>
-    <key>CFBundleIconFile</key><string>Descargador</string>
+    <key>CFBundleName</key><string>Haul</string>
+    <key>CFBundleDisplayName</key><string>Haul</string>
+    <key>CFBundleIdentifier</key><string>io.github.gabriel-castiglia.haul</string>
+    <key>CFBundleExecutable</key><string>Haul</string>
+    <key>CFBundleIconFile</key><string>Haul</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>$VERSION</string>
     <key>CFBundleVersion</key><string>$COMPILACION</string>
