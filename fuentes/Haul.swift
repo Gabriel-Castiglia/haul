@@ -3,7 +3,7 @@
 //  Haul: a graphical front end for yt-dlp on macOS.
 //
 //  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
-//  Date: October 19, 2026
+//  Date: October 20, 2026
 //  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
@@ -109,6 +109,37 @@ func enlaces(en texto: String) -> [String] {
     return resultado
 }
 
+// What a link points to, as far as playlists are concerned. Only YouTube is inspected: links to
+// other sites download as they are, one video each.
+enum Clase { case video, lista, videoEnLista }
+
+func clasificar(_ enlace: String) -> Clase {
+    guard let c = URLComponents(string: enlace), let host = c.host?.lowercased() else { return .video }
+    let youtube = host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com")
+    guard youtube else { return .video }
+    let consulta = Dictionary(c.queryItems?.map { ($0.name, $0.value ?? "") } ?? [], uniquingKeysWith: { a, _ in a })
+    let ruta = c.path.hasSuffix("/") ? String(c.path.dropLast()) : c.path
+    let tieneLista = !(consulta["list"] ?? "").isEmpty
+    let tieneVideo = !(consulta["v"] ?? "").isEmpty || host == "youtu.be"
+        || ruta.hasPrefix("/shorts/") || ruta.hasPrefix("/live/")
+    if tieneLista && tieneVideo { return .videoEnLista }
+    if tieneLista || ruta == "/playlist" { return .lista }
+    // Channel pages (/@name, /channel/…, /c/…, /user/…) are lists of videos too.
+    if ruta.hasPrefix("/@") || ruta.hasPrefix("/channel/") || ruta.hasPrefix("/c/") || ruta.hasPrefix("/user/") {
+        return .lista
+    }
+    return .video
+}
+
+// A playlist title made safe as a folder name.
+func nombreDeCarpeta(_ titulo: String) -> String {
+    var t = titulo.replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: ":", with: "_")
+        .trimmingCharacters(in: .whitespaces)
+    while t.hasPrefix(".") { t.removeFirst() }
+    if t.count > 120 { t = String(t.prefix(120)).trimmingCharacters(in: .whitespaces) }
+    return t.isEmpty ? tr("Lista", "Playlist") : t
+}
+
 // Normalizes a yt-dlp progress field; unknown values are returned empty.
 func limpio(_ s: String) -> String {
     let t = s.trimmingCharacters(in: .whitespaces)
@@ -150,8 +181,10 @@ func traducirError(_ mensaje: String) -> String {
                                        "The page could not be opened; check the connection."),
         ("Requested format is not available", "Ese formato no está disponible para este video.",
                                               "That format is not available for this video."),
-        ("Sign in to confirm you", "YouTube pide verificar que no sos un robot: actualizá yt-dlp (brew upgrade yt-dlp).",
-                                   "YouTube asks to confirm you are not a bot; update yt-dlp (brew upgrade yt-dlp)."),
+        ("Sign in to confirm you", "YouTube pide verificar que no sos un robot: instalá la versión más nueva de Haul.",
+                                   "YouTube asks to confirm you are not a bot; install the latest version of Haul."),
+        ("does not have a videos tab", "Ese canal no tiene videos para bajar.", "That channel has no videos to download."),
+        ("The playlist does not exist", "La lista no existe o es privada.", "The playlist does not exist or is private."),
     ]
     for (patron, es, en) in conocidos where mensaje.localizedCaseInsensitiveContains(patron) {
         return tr(es, en)
@@ -162,10 +195,10 @@ func traducirError(_ mensaje: String) -> String {
 // MARK: - Queue item
 
 enum Etapa: Equatable {
-    case enCola, preparando, bajando, procesando, lista, cancelada
+    case enCola, leyendo, preparando, bajando, procesando, lista, cancelada
     case fallo(String)
 
-    var activa: Bool { [.preparando, .bajando, .procesando].contains(self) }
+    var activa: Bool { [.leyendo, .preparando, .bajando, .procesando].contains(self) }
     var terminada: Bool {
         switch self {
         case .lista, .cancelada, .fallo: return true
@@ -188,6 +221,18 @@ final class Elemento: ObservableObject, Identifiable {
     let formato: Formato
     let destino: URL
 
+    // Playlist rows: number prefix ("03"), playlist name and position ("3/12").
+    var prefijo: String?
+    var nombreLista: String?
+    var posicion: String?
+    // A placeholder row that reads a playlist and is replaced by its videos.
+    var esLectura = false
+
+    // Base name of this download's files (without extension) and the files with that base that
+    // already existed when it started, so a cancelled download removes only what it created.
+    private var baseArchivo: URL?
+    private var previos = Set<String>()
+
     // Notifies the queue of every stage change so the summary and controls stay current.
     @Published var etapa: Etapa = .enCola { didSet { cola?.objectWillChange.send() } }
     weak var cola: Cola?
@@ -206,6 +251,8 @@ final class Elemento: ObservableObject, Identifiable {
         self.destino = destino
     }
 
+    var ubicacion: String? { nombreLista.map { "\($0) · \(posicion ?? "")" } }
+
     func reiniciar() {
         etapa = .enCola
         progreso = 0
@@ -214,6 +261,8 @@ final class Elemento: ObservableObject, Identifiable {
         parte = 1
         archivo = nil
         resto = ""
+        baseArchivo = nil
+        previos = []
     }
 
     func procesar(_ texto: String) {
@@ -226,7 +275,8 @@ final class Elemento: ObservableObject, Identifiable {
                 info = InfoVideo(titulo: c[1],
                                  autor: c[2] == "NA" ? "" : c[2],
                                  duracion: duracion(c[3]),
-                                 miniatura: URL(string: c[4]))
+                                 miniatura: URL(string: c[4]) ?? info?.miniatura)
+                if c.count >= 6, !c[5].isEmpty, c[5] != "NA" { anotar(c[5]) }
             case "AVANCE" where c.count >= 4:
                 let numero = c[1].trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "%", with: "")
                 if let valor = Double(numero) {
@@ -246,9 +296,35 @@ final class Elemento: ObservableObject, Identifiable {
         }
     }
 
+    private func anotar(_ nombre: String) {
+        let p = nombre.hasPrefix("/") ? URL(fileURLWithPath: nombre) : destino.appendingPathComponent(nombre)
+        baseArchivo = p.deletingPathExtension()
+        previos = Set(archivos().map(\.path))
+    }
+
+    // Every file named "<base>.<anything>": the final file, the separate picture and sound
+    // tracks (".f137.mp4"), partial files (".part", ".part-Frag3", ".ytdl") and ".temp" files.
+    private func archivos() -> [URL] {
+        guard let base = baseArchivo else { return [] }
+        let carpeta = base.deletingLastPathComponent()
+        let prefijo = base.lastPathComponent + "."
+        let todos = (try? FileManager.default.contentsOfDirectory(at: carpeta, includingPropertiesForKeys: nil)) ?? []
+        return todos.filter { $0.lastPathComponent.hasPrefix(prefijo) }
+    }
+
+    // Deletes what a cancelled download left behind. Files that existed before it started, such
+    // as an earlier download of the same video in another format, are never touched.
+    func borrarRestos() {
+        for f in archivos() where !previos.contains(f.path) {
+            try? FileManager.default.removeItem(at: f)
+        }
+        baseArchivo = nil
+    }
+
     var textoDeEstado: String {
         switch etapa {
         case .enCola: return tr("En cola", "Queued") + " · \(formato.titulo)"
+        case .leyendo: return tr("Leyendo la lista…", "Reading the playlist…")
         case .preparando: return tr("Preparando…", "Preparing…")
         case .procesando:
             return formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…")
@@ -285,6 +361,18 @@ final class Cola: ObservableObject {
     private var proceso: Process?
     @Published private var actual: Elemento?
     private var ultimoPortapapeles = -1
+    // Playlists being read, and rows whose process was stopped by the user.
+    @Published private var lecturas: [ObjectIdentifier: Process] = [:]
+    private var canceladas = Set<ObjectIdentifier>()
+
+    // Lists longer than this ask for confirmation before filling the queue.
+    static let listaGrande = 200
+
+    // Questions shown by the window as alerts. While one is open, the remaining links wait.
+    @Published var preguntaLista: String?             // a video opened from a playlist
+    @Published var confirmacionGrande: ListaGrande?   // a playlist with many videos
+    private var pendientes: [String] = []
+    private var esperaGrande: (fila: Elemento, nombre: String, videos: [(enlace: String, info: InfoVideo)])?
 
     init() {
         // Restores the folder and format from the previous session. If the saved folder no
@@ -303,14 +391,16 @@ final class Cola: ObservableObject {
     var ytDlpInstalado: Bool {
         FileManager.default.isExecutableFile(atPath: rutaPython) && FileManager.default.fileExists(atPath: rutaYtDlp)
     }
-    var ocupada: Bool { actual != nil }
+    var ocupada: Bool { actual != nil || !lecturas.isEmpty }
     var detectados: [String] { enlaces(en: texto) }
     var hayTerminados: Bool { elementos.contains { $0.etapa.terminada } }
 
     var resumen: String {
         let listas = elementos.filter { $0.etapa == .lista }.count
         let fallos = elementos.filter { if case .fallo = $0.etapa { return true } else { return false } }.count
-        var t = tr("\(listas) de \(elementos.count) listas", "\(listas) of \(elementos.count) done")
+        // A playlist still being read is not counted yet; one that failed is.
+        let total = elementos.filter { !($0.esLectura && $0.etapa.activa) }.count
+        var t = tr("\(listas) de \(total) listas", "\(listas) of \(total) done")
         if fallos > 0 { t += " · " + tr("\(fallos) con error", "\(fallos) failed") }
         return t
     }
@@ -350,13 +440,55 @@ final class Cola: ObservableObject {
     func agregar() {
         let nuevos = detectados
         guard !nuevos.isEmpty else { return }
-        for enlace in nuevos {
-            let e = Elemento(enlace: enlace, formato: formato, destino: destino)
-            e.cola = self
-            elementos.append(e)
-        }
         texto = ""
+        pendientes += nuevos
+        procesarPendientes()
+    }
+
+    // Adds the waiting links in order; stops at a video opened from a playlist until the user answers.
+    private func procesarPendientes() {
+        while preguntaLista == nil, !pendientes.isEmpty {
+            let enlace = pendientes.removeFirst()
+            switch clasificar(enlace) {
+            case .lista: leer(nuevaFila(enlace, lectura: true))
+            case .videoEnLista: preguntaLista = enlace
+            case .video: sumar(nuevaFila(enlace))
+            }
+        }
         siguiente()
+    }
+
+    // Answer to the playlist question: the whole playlist (true), only the video (false) or nothing (nil).
+    func responderLista(_ entera: Bool?) {
+        guard let enlace = preguntaLista else { return }
+        preguntaLista = nil
+        switch entera {
+        case .some(true): leer(nuevaFila(enlace, lectura: true))
+        case .some(false): sumar(nuevaFila(enlace))
+        case .none: break
+        }
+        // The next question, if any, opens after this alert has closed.
+        DispatchQueue.main.async { self.procesarPendientes() }
+    }
+
+    func responderGrande(_ agregar: Bool) {
+        confirmacionGrande = nil
+        guard let espera = esperaGrande else { return }
+        esperaGrande = nil
+        if agregar { expandir(espera.fila, nombre: espera.nombre, videos: espera.videos) }
+        else { espera.fila.etapa = .cancelada }
+    }
+
+    private func nuevaFila(_ enlace: String, lectura: Bool = false) -> Elemento {
+        let e = Elemento(enlace: enlace, formato: formato, destino: destino)
+        e.esLectura = lectura
+        e.cola = self
+        return e
+    }
+
+    private func sumar(_ e: Elemento, en lugar: Int? = nil) {
+        e.cola = self
+        if let i = lugar, i <= elementos.count { elementos.insert(e, at: i) } else { elementos.append(e) }
     }
 
     func quitar(_ e: Elemento) {
@@ -365,17 +497,32 @@ final class Cola: ObservableObject {
     }
 
     func cancelar(_ e: Elemento) {
-        if e === actual { proceso?.terminate() } else if e.etapa == .enCola { e.etapa = .cancelada }
+        let id = ObjectIdentifier(e)
+        if let p = lecturas[id] { canceladas.insert(id); p.terminate() }
+        else if e === actual { canceladas.insert(id); terminarArbol(proceso) }
+        else if e.etapa == .enCola { e.etapa = .cancelada }
     }
 
     func cancelarTodo() {
         for e in elementos where e.etapa == .enCola { e.etapa = .cancelada }
-        proceso?.terminate()
+        for (id, p) in lecturas { canceladas.insert(id); p.terminate() }
+        if let e = actual { canceladas.insert(ObjectIdentifier(e)); terminarArbol(proceso) }
+    }
+
+    // yt-dlp starts ffmpeg as a child process; both are stopped so no file stays open.
+    private func terminarArbol(_ p: Process?) {
+        guard let p, p.isRunning else { return }
+        let hijos = Process()
+        hijos.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        hijos.arguments = ["-TERM", "-P", String(p.processIdentifier)]
+        try? hijos.run()
+        hijos.waitUntilExit()
+        p.terminate()
     }
 
     func reintentar(_ e: Elemento) {
         e.reiniciar()
-        siguiente()
+        if e.esLectura { leer(e, yaEnLaCola: true) } else { siguiente() }
     }
 
     func limpiarTerminados() {
@@ -384,24 +531,31 @@ final class Cola: ObservableObject {
 
     // Processes the queue serially: the next download starts when the previous one ends.
     private func siguiente() {
-        guard actual == nil, let e = elementos.first(where: { $0.etapa == .enCola }) else { return }
+        guard actual == nil, let e = elementos.first(where: { $0.etapa == .enCola && !$0.esLectura }) else { return }
+        do {
+            try FileManager.default.createDirectory(at: e.destino, withIntermediateDirectories: true)
+        } catch {
+            e.etapa = .fallo(tr("No se pudo crear la carpeta: ", "Could not create the folder: ") + error.localizedDescription)
+            siguiente()
+            return
+        }
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: rutaPython)
         p.currentDirectoryURL = e.destino
         // Output is requested in a custom, tab-separated format:
-        //   INFO     video metadata, before downloading (-O before_dl)
+        //   INFO     video metadata and file name, before downloading (-O before_dl)
         //   AVANCE   percentage, speed and time remaining (--progress-template)
         //   ARCHIVO  final path, after merging or converting (-O after_move)
         p.arguments = [rutaYtDlp] + e.formato.argumentos + [
             "--newline", "--color", "no_color", "--no-playlist",
-            "-o", "%(title)s.%(ext)s",
+            "-o", e.prefijo.map { "\($0) - %(title)s.%(ext)s" } ?? "%(title)s.%(ext)s",
             "--no-simulate", "--progress",
             "--progress-template",
             "download:AVANCE\t%(progress._percent_str)s\t%(progress._speed_str)s\t%(progress._eta_str)s",
-            "-O", "before_dl:INFO\t%(title)s\t%(uploader)s\t%(duration)s\t%(thumbnail)s",
+            "-O", "before_dl:INFO\t%(title)s\t%(uploader)s\t%(duration)s\t%(thumbnail)s\t%(filename)s",
             "-O", "after_move:ARCHIVO\t%(filepath)s",
-            e.enlace,
+            "--", e.enlace,
         ]
         var entorno = ProcessInfo.processInfo.environment
         entorno["PATH"] = carpetaHomebrew + ":" + (entorno["PATH"] ?? "/usr/bin:/bin")
@@ -444,7 +598,8 @@ final class Cola: ObservableObject {
     private func terminar(_ e: Elemento, codigo: Int32, motivo: Process.TerminationReason) {
         proceso = nil
         actual = nil
-        if motivo == .uncaughtSignal {
+        if canceladas.remove(ObjectIdentifier(e)) != nil || motivo == .uncaughtSignal {
+            e.borrarRestos()
             e.etapa = .cancelada
         } else if codigo == 0 {
             e.progreso = 1
@@ -457,6 +612,132 @@ final class Cola: ObservableObject {
         }
         siguiente()
     }
+
+    // MARK: Playlists
+
+    // Reads a playlist with yt-dlp (--flat-playlist, no download) and replaces the placeholder
+    // row with one row per video, saved in a subfolder named after the playlist and numbered in
+    // playlist order.
+    private func leer(_ fila: Elemento, yaEnLaCola: Bool = false) {
+        if !yaEnLaCola { sumar(fila) }
+        fila.etapa = .leyendo
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: rutaPython)
+        p.arguments = [rutaYtDlp, "--flat-playlist", "--yes-playlist", "-J", "--no-warnings", "--", fila.enlace]
+        var entorno = ProcessInfo.processInfo.environment
+        entorno["PATH"] = carpetaHomebrew + ":" + (entorno["PATH"] ?? "/usr/bin:/bin")
+        p.environment = entorno
+
+        // The JSON can be large: it is collected as it arrives so the pipe never fills up.
+        let salida = Pipe(), errores = Pipe()
+        let datos = Acumulador(), mensajes = Acumulador()
+        p.standardOutput = salida
+        p.standardError = errores
+        salida.fileHandleForReading.readabilityHandler = { h in datos.sumar(h.availableData) }
+        errores.fileHandleForReading.readabilityHandler = { h in mensajes.sumar(h.availableData) }
+        p.terminationHandler = { [weak self, weak fila] proc in
+            salida.fileHandleForReading.readabilityHandler = nil
+            errores.fileHandleForReading.readabilityHandler = nil
+            datos.sumar(salida.fileHandleForReading.readDataToEndOfFile())
+            mensajes.sumar(errores.fileHandleForReading.readDataToEndOfFile())
+            let codigo = proc.terminationStatus
+            Task { @MainActor in
+                guard let self, let fila else { return }
+                self.leida(fila, codigo: codigo, json: datos.valor,
+                           error: String(decoding: mensajes.valor, as: UTF8.self))
+            }
+        }
+
+        registro += "── \(fila.enlace) (\(tr("lista", "playlist"))) ──\n"
+        do {
+            try p.run()
+            lecturas[ObjectIdentifier(fila)] = p
+        } catch {
+            fila.etapa = .fallo(tr("No se pudo arrancar yt-dlp: ", "Could not start yt-dlp: ") + error.localizedDescription)
+        }
+    }
+
+    private func leida(_ fila: Elemento, codigo: Int32, json: Data, error: String) {
+        lecturas[ObjectIdentifier(fila)] = nil
+        registro += error
+        if canceladas.remove(ObjectIdentifier(fila)) != nil { fila.etapa = .cancelada; return }
+
+        guard codigo == 0 else {
+            let linea = error.components(separatedBy: "\n").last { $0.hasPrefix("ERROR:") }
+            fila.etapa = .fallo(linea.map(mensajeDeError)
+                                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo)."))
+            return
+        }
+        guard let raiz = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else {
+            fila.etapa = .fallo(tr("No se pudo leer la lista.", "Could not read the playlist."))
+            return
+        }
+        guard raiz["_type"] as? String == "playlist", let entradas = raiz["entries"] as? [[String: Any]] else {
+            // Not a playlist after all: yt-dlp resolved it to a single video.
+            let lugar = elementos.firstIndex { $0 === fila }
+            elementos.removeAll { $0 === fila }
+            sumar(Elemento(enlace: fila.enlace, formato: fila.formato, destino: fila.destino), en: lugar)
+            siguiente()
+            return
+        }
+
+        let nombre = raiz["title"] as? String ?? ""
+        var videos: [(enlace: String, info: InfoVideo)] = []
+        for v in entradas {
+            let id = v["id"] as? String
+            var enlace = v["url"] as? String ?? v["webpage_url"] as? String
+            if enlace?.hasPrefix("http") != true, let id { enlace = "https://www.youtube.com/watch?v=\(id)" }
+            guard let enlace else { continue }
+            let miniaturas = v["thumbnails"] as? [[String: Any]]
+            let dur = (v["duration"] as? NSNumber).map { duracion(String($0.doubleValue)) } ?? ""
+            videos.append((enlace, InfoVideo(titulo: v["title"] as? String ?? enlace,
+                                             autor: v["channel"] as? String ?? v["uploader"] as? String ?? "",
+                                             duracion: dur,
+                                             miniatura: (miniaturas?.last?["url"] as? String).flatMap(URL.init(string:)))))
+        }
+        guard !videos.isEmpty else {
+            fila.etapa = .fallo(tr("La lista está vacía.", "The playlist is empty."))
+            return
+        }
+        if videos.count > Cola.listaGrande {
+            esperaGrande = (fila, nombre, videos)
+            confirmacionGrande = ListaGrande(nombre: nombre.isEmpty ? tr("Lista", "Playlist") : nombre, cantidad: videos.count)
+            return
+        }
+        expandir(fila, nombre: nombre, videos: videos)
+    }
+
+    private func expandir(_ fila: Elemento, nombre: String, videos: [(enlace: String, info: InfoVideo)]) {
+        let carpeta = fila.destino.appendingPathComponent(nombreDeCarpeta(nombre), isDirectory: true)
+        let ancho = max(2, String(videos.count).count)
+        let lugar = elementos.firstIndex { $0 === fila }
+        elementos.removeAll { $0 === fila }
+        for (i, v) in videos.enumerated() {
+            let e = Elemento(enlace: v.enlace, formato: fila.formato, destino: carpeta)
+            let numero = String(i + 1)
+            e.prefijo = String(repeating: "0", count: max(0, ancho - numero.count)) + numero
+            e.nombreLista = nombre.isEmpty ? tr("Lista", "Playlist") : nombre
+            e.posicion = "\(i + 1)/\(videos.count)"
+            e.info = v.info
+            sumar(e, en: lugar.map { $0 + i })
+        }
+        siguiente()
+    }
+}
+
+struct ListaGrande: Identifiable {
+    let id = UUID()
+    let nombre: String
+    let cantidad: Int
+}
+
+// Thread-safe byte buffer for output that arrives on background queues.
+final class Acumulador: @unchecked Sendable {
+    private var datos = Data()
+    private let candado = NSLock()
+    func sumar(_ d: Data) { candado.lock(); datos.append(d); candado.unlock() }
+    var valor: Data { candado.lock(); defer { candado.unlock() }; return datos }
 }
 
 // MARK: - Interface components
@@ -560,6 +841,52 @@ struct BotonIcono: View {
     }
 }
 
+// A question card: icon tile, title, explanation and the possible answers, in the app's style.
+struct TarjetaPregunta: View {
+    let simbolo: String
+    let titulo: String
+    let texto: String
+    let detalle: String?
+    let principal: String
+    let alPrincipal: () -> Void
+    let secundario: String?
+    let alSecundario: (() -> Void)?
+    let alCancelar: () -> Void
+
+    var body: some View {
+        Tarjeta {
+            HStack(alignment: .top, spacing: 14) {
+                Image(systemName: simbolo)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(degrade, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(titulo).font(.headline)
+                    Text(texto).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    if let detalle {
+                        Text(detalle).font(.caption).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                    }
+                    HStack(spacing: 8) {
+                        Button(tr("Cancelar", "Cancel"), action: alCancelar)
+                            .keyboardShortcut(.cancelAction)
+                        Spacer(minLength: 0)
+                        if let secundario, let alSecundario {
+                            Button(secundario, action: alSecundario)
+                        }
+                        Button(principal, action: alPrincipal)
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                    }
+                    .controlSize(.large)
+                    .padding(.top, 6)
+                }
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(degrade, lineWidth: 1.5))
+    }
+}
+
 struct Miniatura: View {
     let url: URL?
     var ancho: CGFloat = 112
@@ -606,9 +933,12 @@ struct FilaElemento: View {
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(2)
                         .truncationMode(.middle)
+                    if let u = e.ubicacion {
+                        Text(u).font(.caption).foregroundStyle(.tertiary).lineLimit(1)
+                    }
                     if e.etapa == .bajando || e.etapa == .procesando {
                         BarraDeAvance(valor: e.progreso)
-                    } else if e.etapa == .preparando {
+                    } else if e.etapa == .preparando || e.etapa == .leyendo {
                         ProgressView().controlSize(.mini)
                     }
                     Text(e.textoDeEstado)
@@ -633,6 +963,8 @@ struct FilaElemento: View {
             switch e.etapa {
             case .enCola:
                 BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la cola", "Remove from queue")) { cola.quitar(e) }
+            case .leyendo:
+                BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist")) { cola.cancelar(e) }
             case .preparando, .bajando, .procesando:
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Cancelar esta descarga", "Cancel this download")) { cola.cancelar(e) }
             case .lista:
@@ -659,6 +991,7 @@ struct FilaElemento: View {
 // MARK: - Window
 
 struct Ventana: View {
+    @FocusState private var campoEnfocado: Bool
     @StateObject private var cola = Cola()
     @StateObject private var verDetalles = Marca()
     @ObservedObject private var ajustes = Ajustes.shared
@@ -684,10 +1017,11 @@ struct Ventana: View {
                     BotonGrande(titulo: tituloDelBoton, simbolo: "arrow.down.circle.fill",
                                 activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) { cola.agregar() }
                         .keyboardShortcut(.return, modifiers: .command)
+                    preguntas.id("pregunta")
                     if !cola.elementos.isEmpty { listaDeLaCola.id("cola") }
                     detalles
-                    Text(tr("Motor: yt-dlp \(versionYtDlp), incluido en la app",
-                            "Engine: yt-dlp \(versionYtDlp), bundled with the app"))
+                    Text(tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), incluido en la app",
+                            "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -701,6 +1035,20 @@ struct Ventana: View {
             // When links are added, scroll to the queue to show progress.
             .onChange(of: cola.elementos.count) { antes, ahora in
                 if ahora > antes { withAnimation { desplazar.scrollTo("cola", anchor: .top) } }
+            }
+            // A question appears in the window itself, so it is scrolled into view.
+            // The links field gives up the focus, so Return answers the card instead of adding a line.
+            .onChange(of: cola.preguntaLista) { _, ahora in
+                if ahora != nil {
+                    campoEnfocado = false
+                    withAnimation { desplazar.scrollTo("pregunta", anchor: .center) }
+                }
+            }
+            .onChange(of: cola.confirmacionGrande?.id) { _, ahora in
+                if ahora != nil {
+                    campoEnfocado = false
+                    withAnimation { desplazar.scrollTo("pregunta", anchor: .center) }
+                }
             }
             }
         }
@@ -742,6 +1090,13 @@ struct Ventana: View {
                 Text(tr("Videos y música de YouTube y casi cualquier sitio", "Video and music from YouTube and almost any site"))
                     .foregroundStyle(.secondary)
             }
+            Spacer(minLength: 8)
+            Button { VentanaAcercaDe.mostrar() } label: {
+                Image(systemName: "info.circle").font(.system(size: 17))
+            }
+            .buttonStyle(.borderless)
+            .help(tr("Acerca de Haul", "About Haul"))
+            .accessibilityLabel(tr("Acerca de Haul", "About Haul"))
         }
     }
 
@@ -772,7 +1127,10 @@ struct Ventana: View {
                                 .padding(.leading, 5)
                                 .allowsHitTesting(false)
                         }
+                        // Locked while a question card is open, so Return answers the card.
                         TextEditor(text: $cola.texto)
+                            .focused($campoEnfocado)
+                            .disabled(cola.preguntaLista != nil || cola.confirmacionGrande != nil)
                             .font(.system(size: 14))
                             .scrollContentBackground(.hidden)
                             .frame(height: 64)
@@ -835,6 +1193,33 @@ struct Ventana: View {
         }
     }
 
+    // Questions about playlists, shown as a card in the window rather than as a system alert.
+    @ViewBuilder private var preguntas: some View {
+        if let enlace = cola.preguntaLista {
+            TarjetaPregunta(
+                simbolo: "list.bullet.rectangle.portrait",
+                titulo: tr("Este video está dentro de una lista", "This video is part of a playlist"),
+                texto: tr("Podés bajar solo este video o la lista entera. Con la lista entera, cada video entra a la "
+                          + "cola por separado y se guarda en una carpeta con el nombre de la lista, numerado en orden.",
+                          "You can download just this video or the whole playlist. With the whole playlist, each video "
+                          + "joins the queue on its own and is saved in a folder named after the playlist, in order."),
+                detalle: enlace,
+                principal: tr("La lista entera", "The whole playlist"), alPrincipal: { cola.responderLista(true) },
+                secundario: tr("Solo este video", "Only this video"), alSecundario: { cola.responderLista(false) },
+                alCancelar: { cola.responderLista(nil) })
+        } else if let l = cola.confirmacionGrande {
+            TarjetaPregunta(
+                simbolo: "rectangle.stack",
+                titulo: tr("Una lista grande", "A large playlist"),
+                texto: tr("«\(l.nombre)» tiene \(l.cantidad) videos. ¿Los agrego todos a la cola?",
+                          "\"\(l.nombre)\" has \(l.cantidad) videos. Add them all to the queue?"),
+                detalle: nil,
+                principal: tr("Agregar \(l.cantidad)", "Add \(l.cantidad)"), alPrincipal: { cola.responderGrande(true) },
+                secundario: nil, alSecundario: nil,
+                alCancelar: { cola.responderGrande(false) })
+        }
+    }
+
     private var listaDeLaCola: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -874,6 +1259,100 @@ struct Ventana: View {
     }
 }
 
+// MARK: - About
+
+let repositorio = "https://github.com/Gabriel-Castiglia/haul"
+let repositorioWindows = "https://github.com/Gabriel-Castiglia/haul-windows"
+let versionHaul = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+
+// The About window: version, the meaning of the name, author, license and repository.
+struct AcercaDe: View {
+    @ObservedObject private var ajustes = Ajustes.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Haul").font(.system(size: 26, weight: .bold, design: .rounded))
+                    Text(tr("Versión \(versionHaul) para macOS · yt-dlp \(versionYtDlp)",
+                            "Version \(versionHaul) for macOS · yt-dlp \(versionYtDlp)"))
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.bottom, 4)
+            seccion(tr("El nombre", "The name"), tr(
+                "«Haul» es una palabra inglesa: quiere decir acarrear algo pesado y también la carga que uno se trae de "
+                + "vuelta, como la pesca de un día. Eso hace la app: se trae a casa videos y música de YouTube y de casi "
+                + "cualquier sitio.",
+                "To haul is to carry something heavy, and a haul is the load you bring back, like a day's catch. That is "
+                + "what the app does: it brings video and music home from YouTube and almost any other site."))
+            seccion(tr("Autor", "Author"), "Gabriel Castiglia · © 2026")
+            seccion(tr("Licencia", "License"), tr(
+                "Software libre bajo la Licencia Pública General de GNU, versión 2 (GPL-2.0-only), la misma del núcleo "
+                + "Linux. La copia incluida de yt-dlp conserva sus propias licencias (Unlicense y las de sus componentes).",
+                "Free software under the GNU General Public License, version 2 (GPL-2.0-only), the same license as the "
+                + "Linux kernel. The bundled copy of yt-dlp keeps its own licenses (the Unlicense and those of its components)."))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(tr("Código fuente", "Source code")).font(.headline)
+                Link(String(repositorio.dropFirst("https://".count)), destination: URL(string: repositorio)!)
+                Text(tr("Versión para Windows:", "Windows version:")).font(.caption).foregroundStyle(.secondary)
+                    .padding(.top, 4)
+                Link(String(repositorioWindows.dropFirst("https://".count)), destination: URL(string: repositorioWindows)!)
+            }
+            HStack {
+                Spacer()
+                Button(tr("Cerrar", "Close")) { VentanaAcercaDe.cerrar() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.top, 8)
+        }
+        .padding(28)
+        .frame(width: 460)
+        .fixedSize(horizontal: false, vertical: true)
+        .id(ajustes.idioma)
+        .onChange(of: ajustes.idioma) { VentanaAcercaDe.retitular() }
+    }
+
+    private func seccion(_ titulo: String, _ texto: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(titulo).font(.headline)
+            Text(texto).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// The About window is created on demand with AppKit: as a SwiftUI Window scene it opened by
+// itself at launch.
+@MainActor
+enum VentanaAcercaDe {
+    private static var ventana: NSWindow?
+
+    static func mostrar() {
+        if ventana == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: AcercaDe()))
+            w.styleMask = [.titled, .closable]
+            w.isReleasedWhenClosed = false
+            ventana = w
+        }
+        ventana?.title = tr("Acerca de Haul", "About Haul")
+        ventana?.center()
+        ventana?.makeKeyAndOrderFront(nil)
+    }
+
+    static func cerrar() { ventana?.close() }
+
+    static func retitular() { ventana?.title = tr("Acerca de Haul", "About Haul") }
+}
+
+// "About Haul" in the app menu opens the same window as the button.
+struct MenuAcercaDe: View {
+    @ObservedObject private var ajustes = Ajustes.shared
+    var body: some View {
+        Button(tr("Acerca de Haul", "About Haul")) { VentanaAcercaDe.mostrar() }
+    }
+}
+
 // MARK: - App
 
 final class Delegado: NSObject, NSApplicationDelegate {
@@ -905,6 +1384,7 @@ struct HaulApp: App {
             .windowStyle(.hiddenTitleBar)
             .windowResizability(.contentMinSize)
             .commands {
+                CommandGroup(replacing: .appInfo) { MenuAcercaDe() }
                 CommandMenu(tr("Idioma", "Language")) {
                     Picker(tr("Idioma", "Language"), selection: $ajustes.idioma) {
                         ForEach(Idioma.allCases) { Text($0.nombre).tag($0) }

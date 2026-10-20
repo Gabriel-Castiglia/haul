@@ -1,10 +1,12 @@
 # Haul
 
-Gabriel Castiglia · 19 de octubre de 2026 · versión 1.0.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 20 de octubre de 2026 · versión 1.1.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
 Repositorio: <https://github.com/Gabriel-Castiglia/haul>
+
+Versión para Windows: <https://github.com/Gabriel-Castiglia/haul-windows>
 
 Manual en PDF: [`docs/Haul-manual-es.pdf`](docs/Haul-manual-es.pdf)
 
@@ -53,7 +55,12 @@ Volver a ejecutarlo es la forma de actualizar todo: dependencias y aplicación.
 Los enlaces entran en una cola y se descargan de a uno. Mientras la cola avanza se pueden agregar
 más enlaces. Cada fila muestra la miniatura, el título, el porcentaje, la velocidad y el tiempo
 restante, y al terminar ofrece mostrar el archivo en el Finder o abrirlo. Las descargas con error o
-canceladas se pueden reintentar o quitar. La salida completa de yt-dlp está en «Detalles técnicos».
+canceladas se pueden reintentar o quitar. Una descarga cancelada borra los archivos a medias que había
+creado; los que ya estaban en la carpeta, como una descarga anterior del mismo video en otro formato,
+no se tocan nunca. La salida completa de yt-dlp está en «Detalles técnicos».
+
+El botón ⓘ de la ventana, o Haul > Acerca de Haul en la barra de menús, muestra la versión, qué
+significa el nombre, el autor, la licencia y el enlace a este repositorio, en el idioma de la interfaz.
 
 También se puede iniciar con enlaces desde la Terminal o desde Atajos:
 
@@ -69,8 +76,20 @@ open -a Haul --args --descargar URL1 URL2
 | Solo audio | MP3 a la máxima calidad | `-x --audio-format mp3 --audio-quality 0` |
 
 Se prefiere H.264 porque QuickTime y iOS lo reproducen sin conversión; sin esa preferencia YouTube
-entrega AV1 con audio Opus. Los archivos llevan el título del video como nombre. Un enlace que
-apunta a una lista de reproducción descarga solo ese video.
+entrega AV1 con audio Opus. Los archivos llevan el título del video como nombre.
+
+## Listas de reproducción
+
+Un enlace a una lista de YouTube (`youtube.com/playlist?list=…`) o a la página de un canal
+(`youtube.com/@nombre`) se lee primero, sin descargar nada, y cada video pasa a ser una fila propia de
+la cola, con su miniatura y su posición («Mix · 3/12»). Los archivos van a una subcarpeta con el nombre
+de la lista y se numeran en el orden de la lista: `01 - Título.mp4`, `02 - Título.mp4`, etcétera. Cada
+video se puede cancelar o reintentar por separado. Una lista de más de 200 videos pide confirmación
+antes de entrar a la cola.
+
+Un enlace a un video abierto desde una lista (`watch?v=…&list=…`) muestra en la ventana una tarjeta
+que pregunta si se baja solo ese video o la lista entera. Los enlaces de otros sitios se descargan tal
+cual, un video cada uno.
 
 ## Estructura del repositorio
 
@@ -163,7 +182,7 @@ separada por tabuladores:
 
 | Línea | Contenido | Origen |
 |---|---|---|
-| `INFO` | título, autor, duración y miniatura | `-O before_dl:…` |
+| `INFO` | título, autor, duración, miniatura y nombre del archivo | `-O before_dl:…` |
 | `AVANCE` | porcentaje, velocidad y tiempo restante | `--progress-template` |
 | `ARCHIVO` | ruta final del archivo | `-O after_move:…` |
 

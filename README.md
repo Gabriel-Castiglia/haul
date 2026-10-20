@@ -1,10 +1,12 @@
 # Haul
 
-Gabriel Castiglia · October 19, 2026 · version 1.0.0 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · October 20, 2026 · version 1.1.0 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
 Repository: <https://github.com/Gabriel-Castiglia/haul>
+
+Windows version: <https://github.com/Gabriel-Castiglia/haul-windows>
 
 PDF manual: [`docs/Haul-manual-en.pdf`](docs/Haul-manual-en.pdf)
 
@@ -53,7 +55,12 @@ Running it again is how everything gets updated, dependencies and app alike.
 Links go into a queue and are downloaded one at a time. More links can be added while the queue
 runs. Each row shows the thumbnail, title, percentage, speed and time remaining, and once finished
 it offers to reveal the file in the Finder or open it. Failed or cancelled downloads can be retried
-or removed. The full yt-dlp output is under "Technical details".
+or removed. A cancelled download deletes the partial files it had created; files that were already
+in the folder, such as an earlier download of the same video in another format, are never touched.
+The full yt-dlp output is under "Technical details".
+
+The ⓘ button in the window, or Haul > About Haul in the menu bar, shows the version, the meaning of
+the name, the author, the license and the link to this repository, in the interface language.
 
 The app can also be started with links from Terminal or from Shortcuts:
 
@@ -69,8 +76,19 @@ open -a Haul --args --descargar URL1 URL2
 | Audio only | MP3 at the highest quality | `-x --audio-format mp3 --audio-quality 0` |
 
 H.264 is preferred because QuickTime and iOS play it without conversion; without that preference
-YouTube serves AV1 with Opus audio. Files are named after the video title. A link that points into
-a playlist downloads only that video.
+YouTube serves AV1 with Opus audio. Files are named after the video title.
+
+## Playlists
+
+A YouTube playlist link (`youtube.com/playlist?list=…`) or a channel page (`youtube.com/@name`) is
+read first, without downloading anything, and every video becomes its own row in the queue, with its
+thumbnail and its position ("Mix · 3/12"). The files go into a subfolder named after the playlist and
+are numbered in playlist order: `01 - Title.mp4`, `02 - Title.mp4`, and so on. Each video can be
+cancelled or retried on its own. A playlist with more than 200 videos asks for confirmation first.
+
+A link to a video that was opened from a playlist (`watch?v=…&list=…`) shows a card in the window that
+asks whether to download only that video or the whole playlist. Links to other sites download as
+they are, one video each.
 
 ## Repository layout
 
@@ -160,7 +178,7 @@ tab-separated format:
 
 | Line | Contents | Source |
 |---|---|---|
-| `INFO` | title, uploader, duration and thumbnail | `-O before_dl:…` |
+| `INFO` | title, uploader, duration, thumbnail and file name | `-O before_dl:…` |
 | `AVANCE` | percentage, speed and time remaining | `--progress-template` |
 | `ARCHIVO` | final file path | `-O after_move:…` |
 
