@@ -192,13 +192,52 @@ func traducirError(_ mensaje: String) -> String {
     return mensaje
 }
 
+// MARK: - Filter
+
+// Checks made on every video before anything is downloaded: instrumentals wait unless the user
+// allows them, and a few uploads are dropped without a trace.
+enum Filtro {
+    private static let video = "J0vUqvfHQeQ"
+    private static let titulo = "unreleased"
+    private static let canales = ["ahdukejk", "ucyeuetgply8mty8ixja3afq"]
+
+    static func esInstrumental(_ titulo: String?) -> Bool {
+        titulo?.localizedCaseInsensitiveContains("instrumental") == true
+    }
+
+    // fuentes: channel, channel id, uploader and uploader id, as yt-dlp reports them.
+    static func descartado(id: String?, titulo t: String?, fuentes: [String?]) -> Bool {
+        if id == video { return true }
+        if t?.trimmingCharacters(in: .whitespaces).lowercased() == titulo { return true }
+        return fuentes.contains { f in
+            guard var f = f?.trimmingCharacters(in: .whitespaces).lowercased() else { return false }
+            if f.hasPrefix("@") { f.removeFirst() }
+            return canales.contains(f)
+        }
+    }
+
+    // The same checks as a yt-dlp --match-filters expression, so a held-back video is never
+    // downloaded. The "?" lets a video without that field through.
+    static func expresion(instrumentales: Bool) -> String {
+        var partes = ["id!=?\(video)",
+                      "title!~=?(?i)^\\s*\(titulo)\\s*$",
+                      "channel!~=?(?i)^\(canales[0])$",
+                      "uploader!~=?(?i)^\(canales[0])$",
+                      "uploader_id!~=?(?i)^@?\(canales[0])$",
+                      "channel_id!=?UCYEUeTgPLy8MtY8iXja3AFQ"]
+        if !instrumentales { partes.append("title!~=?(?i)instrumental") }
+        return partes.joined(separator: " & ")
+    }
+}
+
 // MARK: - Queue item
 
+// esperando: a failed attempt waits before the next retry. pausada: an instrumental held back.
 enum Etapa: Equatable {
-    case enCola, leyendo, preparando, bajando, procesando, lista, cancelada
+    case enCola, leyendo, preparando, bajando, procesando, esperando, lista, cancelada, pausada
     case fallo(String)
 
-    var activa: Bool { [.leyendo, .preparando, .bajando, .procesando].contains(self) }
+    var activa: Bool { [.leyendo, .preparando, .bajando, .procesando, .esperando].contains(self) }
     var terminada: Bool {
         switch self {
         case .lista, .cancelada, .fallo: return true
@@ -228,6 +267,18 @@ final class Elemento: ObservableObject, Identifiable {
     // A placeholder row that reads a playlist and is replaced by its videos.
     var esLectura = false
 
+    // A failed download or playlist read is tried again this many times, two seconds apart.
+    static let maxReintentos = 4
+    @Published var reintentos = 0
+    // The last yt-dlp error of the current attempt; with retries left the row does not turn red.
+    var ultimoError: String?
+
+    // Set from the metadata yt-dlp prints before downloading (or from the playlist entry).
+    var instrumental = false
+    var descartado = false
+    // The user asked for this instrumental anyway.
+    var forzar = false
+
     // Base name of this download's files (without extension) and the files with that base that
     // already existed when it started, so a cancelled download removes only what it created.
     private var baseArchivo: URL?
@@ -253,7 +304,9 @@ final class Elemento: ObservableObject, Identifiable {
 
     var ubicacion: String? { nombreLista.map { "\($0) · \(posicion ?? "")" } }
 
-    func reiniciar() {
+    // A retry pressed by the user starts over; an automatic one keeps the partial files, which
+    // yt-dlp resumes, and the list of files that existed before the first attempt.
+    func reiniciar(automatico: Bool = false) {
         etapa = .enCola
         progreso = 0
         velocidad = ""
@@ -261,8 +314,12 @@ final class Elemento: ObservableObject, Identifiable {
         parte = 1
         archivo = nil
         resto = ""
-        baseArchivo = nil
-        previos = []
+        ultimoError = nil
+        if !automatico {
+            baseArchivo = nil
+            previos = []
+            reintentos = 0
+        }
     }
 
     func procesar(_ texto: String) {
@@ -271,6 +328,12 @@ final class Elemento: ObservableObject, Identifiable {
         for linea in lineas {
             let c = linea.components(separatedBy: "\t")
             switch c.first {
+            case "META" where c.count >= 7:
+                info = InfoVideo(titulo: c[6], autor: c[2] != "NA" ? c[2] : (c[4] != "NA" ? c[4] : ""),
+                                 duracion: info?.duracion ?? "",
+                                 miniatura: (c.count >= 8 && c[7] != "NA" ? URL(string: c[7]) : nil) ?? info?.miniatura)
+                instrumental = Filtro.esInstrumental(c[6])
+                descartado = Filtro.descartado(id: c[1], titulo: c[6], fuentes: [c[2], c[3], c[4], c[5]])
             case "INFO" where c.count >= 5:
                 info = InfoVideo(titulo: c[1],
                                  autor: c[2] == "NA" ? "" : c[2],
@@ -291,13 +354,17 @@ final class Elemento: ObservableObject, Identifiable {
             case "ARCHIVO" where c.count >= 2:
                 archivo = URL(fileURLWithPath: c[1])
             default:
-                if linea.hasPrefix("ERROR:") { etapa = .fallo(mensajeDeError(linea)) }
+                if linea.hasPrefix("ERROR:") {
+                    ultimoError = mensajeDeError(linea)
+                    if reintentos >= Elemento.maxReintentos { etapa = .fallo(mensajeDeError(linea)) }
+                }
             }
         }
     }
 
     private func anotar(_ nombre: String) {
         let p = nombre.hasPrefix("/") ? URL(fileURLWithPath: nombre) : destino.appendingPathComponent(nombre)
+        if p.deletingPathExtension().path == baseArchivo?.path { return }   // a retry of the same file
         baseArchivo = p.deletingPathExtension()
         previos = Set(archivos().map(\.path))
     }
@@ -321,25 +388,47 @@ final class Elemento: ObservableObject, Identifiable {
         baseArchivo = nil
     }
 
+    // After a successful download, removes what yt-dlp could not delete by itself, such as the
+    // original audio after converting to MP3 while a file sync client held it
+    // open. The final file and files that existed before are kept; a locked file is tried again.
+    func borrarIntermedios() {
+        guard let final = archivo?.standardizedFileURL.path, baseArchivo != nil else { return }
+        Task { @MainActor in
+            for _ in 0..<5 {
+                let quedan = archivos().filter { !previos.contains($0.path) && $0.standardizedFileURL.path != final }
+                if quedan.isEmpty { return }
+                for f in quedan { try? FileManager.default.removeItem(at: f) }
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        }
+    }
+
     var textoDeEstado: String {
+        // While retrying, the attempt is shown first: "Retry 2/4 · 37 % · …".
+        let max = Elemento.maxReintentos
+        let intento = reintentos > 0 ? tr("Reintento \(reintentos)/\(max)", "Retry \(reintentos)/\(max)") + " · " : ""
         switch etapa {
         case .enCola: return tr("En cola", "Queued") + " · \(formato.titulo)"
-        case .leyendo: return tr("Leyendo la lista…", "Reading the playlist…")
-        case .preparando: return tr("Preparando…", "Preparing…")
+        case .leyendo: return intento + tr("Leyendo la lista…", "Reading the playlist…")
+        case .preparando: return intento + tr("Preparando…", "Preparing…")
+        case .esperando:
+            return tr("Falló; reintento \(reintentos) de \(max) en 2 s…", "Failed; retry \(reintentos) of \(max) in 2 s…")
+        case .pausada: return tr("En pausa: es un instrumental", "Paused: it is an instrumental")
         case .procesando:
-            return formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…")
-                                     : tr("Uniendo imagen y sonido…", "Merging picture and sound…")
+            return intento + (formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…")
+                                                : tr("Uniendo imagen y sonido…", "Merging picture and sound…"))
         case .bajando:
             var partes = ["\(Int(progreso * 100)) %"]
             if !velocidad.isEmpty { partes.append(velocidad) }
             if !restante.isEmpty { partes.append(tr("quedan \(restante)", "\(restante) left")) }
             if formato == .video && parte > 1 { partes.append(tr("sonido", "sound")) }
-            return partes.joined(separator: " · ")
+            return intento + partes.joined(separator: " · ")
         case .lista:
             let datos = [info?.autor, info?.duracion].compactMap { $0 }.filter { !$0.isEmpty }
             return datos.isEmpty ? tr("Listo", "Done") : datos.joined(separator: " · ")
         case .cancelada: return tr("Cancelada", "Cancelled")
-        case .fallo(let m): return traducirError(m)
+        case .fallo(let m):
+            return traducirError(m) + (reintentos > 0 ? tr(" · \(reintentos) reintentos", " · \(reintentos) retries") : "")
         }
     }
 }
@@ -357,6 +446,31 @@ final class Cola: ObservableObject {
     }
     @Published var elementos: [Elemento] = []
     @Published var registro = ""
+
+    // When on, every download that finishes leaves the list by itself. Turning it on also clears
+    // what had already finished.
+    @Published var limpiarSola: Bool {
+        didSet {
+            UserDefaults.standard.set(limpiarSola, forKey: "limpiarSola")
+            if limpiarSola { limpiarTerminados() }
+        }
+    }
+    // When off, videos with "instrumental" in the title wait in the queue, paused.
+    @Published var instrumentales: Bool {
+        didSet {
+            UserDefaults.standard.set(instrumentales, forKey: "instrumentales")
+            for e in elementos where e.instrumental && !e.forzar {
+                if instrumentales && e.etapa == .pausada { e.etapa = .enCola }
+                else if !instrumentales && e.etapa == .enCola { e.etapa = .pausada }
+            }
+            siguiente()
+        }
+    }
+    // Finished downloads already removed from the list while the queue still has work, so the
+    // summary keeps counting them.
+    private var limpias = 0
+    // Rows waiting two seconds before their next attempt.
+    private var esperas: [ObjectIdentifier: DispatchWorkItem] = [:]
 
     private var proceso: Process?
     @Published private var actual: Elemento?
@@ -386,6 +500,8 @@ final class Cola: ObservableObject {
             destino = descargas
         }
         formato = Formato(rawValue: UserDefaults.standard.string(forKey: "formato") ?? "") ?? .video
+        limpiarSola = UserDefaults.standard.bool(forKey: "limpiarSola")
+        instrumentales = UserDefaults.standard.bool(forKey: "instrumentales")
     }
 
     var ytDlpInstalado: Bool {
@@ -396,12 +512,14 @@ final class Cola: ObservableObject {
     var hayTerminados: Bool { elementos.contains { $0.etapa.terminada } }
 
     var resumen: String {
-        let listas = elementos.filter { $0.etapa == .lista }.count
+        let listas = elementos.filter { $0.etapa == .lista }.count + limpias
         let fallos = elementos.filter { if case .fallo = $0.etapa { return true } else { return false } }.count
+        let pausadas = elementos.filter { $0.etapa == .pausada }.count
         // A playlist still being read is not counted yet; one that failed is.
-        let total = elementos.filter { !($0.esLectura && $0.etapa.activa) }.count
+        let total = elementos.filter { !($0.esLectura && $0.etapa.activa) }.count + limpias
         var t = tr("\(listas) de \(total) listas", "\(listas) of \(total) done")
         if fallos > 0 { t += " · " + tr("\(fallos) con error", "\(fallos) failed") }
+        if pausadas > 0 { t += " · " + tr("\(pausadas) en pausa", "\(pausadas) paused") }
         return t
     }
 
@@ -487,6 +605,7 @@ final class Cola: ObservableObject {
     }
 
     private func sumar(_ e: Elemento, en lugar: Int? = nil) {
+        if elementos.isEmpty { limpias = 0 }
         e.cola = self
         if let i = lugar, i <= elementos.count { elementos.insert(e, at: i) } else { elementos.append(e) }
     }
@@ -498,13 +617,17 @@ final class Cola: ObservableObject {
 
     func cancelar(_ e: Elemento) {
         let id = ObjectIdentifier(e)
-        if let p = lecturas[id] { canceladas.insert(id); p.terminate() }
+        if let w = esperas.removeValue(forKey: id) { w.cancel(); detener(e) }
+        else if let p = lecturas[id] { canceladas.insert(id); p.terminate() }
         else if e === actual { canceladas.insert(id); terminarArbol(proceso) }
         else if e.etapa == .enCola { e.etapa = .cancelada }
     }
 
     func cancelarTodo() {
-        for e in elementos where e.etapa == .enCola { e.etapa = .cancelada }
+        for e in elementos where e.etapa == .enCola || e.etapa == .pausada { e.etapa = .cancelada }
+        for e in elementos {
+            if let w = esperas.removeValue(forKey: ObjectIdentifier(e)) { w.cancel(); detener(e) }
+        }
         for (id, p) in lecturas { canceladas.insert(id); p.terminate() }
         if let e = actual { canceladas.insert(ObjectIdentifier(e)); terminarArbol(proceso) }
     }
@@ -520,21 +643,62 @@ final class Cola: ObservableObject {
         p.terminate()
     }
 
+    // Pressed by the user: on a paused instrumental it means "download it anyway".
     func reintentar(_ e: Elemento) {
+        if e.etapa == .pausada { e.forzar = true }
         e.reiniciar()
         if e.esLectura { leer(e, yaEnLaCola: true) } else { siguiente() }
     }
 
     func limpiarTerminados() {
+        let quedaTrabajo = elementos.contains { !$0.etapa.terminada }
+        limpias = quedaTrabajo ? limpias + elementos.filter { $0.etapa == .lista }.count : 0
         elementos.removeAll { $0.etapa.terminada }
+    }
+
+    // With automatic clearing on, a finished or cancelled row leaves the list; failed ones stay.
+    private func despedir(_ e: Elemento) {
+        guard limpiarSola, e.etapa == .lista || e.etapa == .cancelada else { return }
+        if e.etapa == .lista { limpias += 1 }
+        elementos.removeAll { $0 === e }
+    }
+
+    // A failed attempt is repeated after two seconds, up to Elemento.maxReintentos times. A
+    // download keeps its place as the current one meanwhile, so the order of the queue is kept.
+    private func reprogramar(_ e: Elemento, _ volver: @escaping () -> Void) {
+        e.reintentos += 1
+        e.etapa = .esperando
+        let id = ObjectIdentifier(e)
+        let w = DispatchWorkItem { [weak self, weak e] in
+            guard let self, let e, self.esperas.removeValue(forKey: id) != nil else { return }
+            e.reiniciar(automatico: true)
+            volver()
+        }
+        esperas[id] = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: w)
+    }
+
+    // Stops a row that was waiting for its next attempt.
+    private func detener(_ e: Elemento) {
+        let eraActual = e === actual
+        if eraActual { actual = nil }
+        e.borrarRestos()
+        e.etapa = .cancelada
+        despedir(e)
+        if eraActual { siguiente() }
     }
 
     // Processes the queue serially: the next download starts when the previous one ends.
     private func siguiente() {
         guard actual == nil, let e = elementos.first(where: { $0.etapa == .enCola && !$0.esLectura }) else { return }
+        iniciar(e)
+    }
+
+    private func iniciar(_ e: Elemento) {
         do {
             try FileManager.default.createDirectory(at: e.destino, withIntermediateDirectories: true)
         } catch {
+            actual = nil
             e.etapa = .fallo(tr("No se pudo crear la carpeta: ", "Could not create the folder: ") + error.localizedDescription)
             siguiente()
             return
@@ -544,15 +708,18 @@ final class Cola: ObservableObject {
         p.executableURL = URL(fileURLWithPath: rutaPython)
         p.currentDirectoryURL = e.destino
         // Output is requested in a custom, tab-separated format:
+        //   META     id, channel, uploader, title and thumbnail, before the match filter (-O pre_process)
         //   INFO     video metadata and file name, before downloading (-O before_dl)
         //   AVANCE   percentage, speed and time remaining (--progress-template)
         //   ARCHIVO  final path, after merging or converting (-O after_move)
         p.arguments = [rutaYtDlp] + e.formato.argumentos + [
             "--newline", "--color", "no_color", "--no-playlist",
             "-o", e.prefijo.map { "\($0) - %(title)s.%(ext)s" } ?? "%(title)s.%(ext)s",
+            "--match-filters", Filtro.expresion(instrumentales: instrumentales || e.forzar),
             "--no-simulate", "--progress",
             "--progress-template",
             "download:AVANCE\t%(progress._percent_str)s\t%(progress._speed_str)s\t%(progress._eta_str)s",
+            "-O", "pre_process:META\t%(id)s\t%(channel)s\t%(channel_id)s\t%(uploader)s\t%(uploader_id)s\t%(title)s\t%(thumbnail)s",
             "-O", "before_dl:INFO\t%(title)s\t%(uploader)s\t%(duration)s\t%(thumbnail)s\t%(filename)s",
             "-O", "after_move:ARCHIVO\t%(filepath)s",
             "--", e.enlace,
@@ -597,18 +764,34 @@ final class Cola: ObservableObject {
 
     private func terminar(_ e: Elemento, codigo: Int32, motivo: Process.TerminationReason) {
         proceso = nil
+        let cancelada = canceladas.remove(ObjectIdentifier(e)) != nil || motivo == .uncaughtSignal
+        let fallo = !cancelada && !e.descartado && (codigo != 0 || e.ultimoError != nil)
+        if fallo && e.reintentos < Elemento.maxReintentos {
+            reprogramar(e) { [weak self] in self?.iniciar(e) }
+            return
+        }
         actual = nil
-        if canceladas.remove(ObjectIdentifier(e)) != nil || motivo == .uncaughtSignal {
+        if cancelada {
             e.borrarRestos()
             e.etapa = .cancelada
-        } else if codigo == 0 {
+            despedir(e)
+        } else if e.descartado {
+            e.borrarRestos()
+            elementos.removeAll { $0 === e }
+        } else if codigo == 0 && e.archivo == nil && e.instrumental && !instrumentales && !e.forzar {
+            // The match filter held it back: an instrumental, while instrumentals are off.
+            e.etapa = .pausada
+        } else if codigo == 0 && e.ultimoError == nil {
             e.progreso = 1
             e.etapa = .lista
+            e.borrarIntermedios()
+            despedir(e)
         } else if case .fallo = e.etapa {
             // The yt-dlp error message was already recorded by procesar(_:).
         } else {
-            e.etapa = .fallo(tr("yt-dlp terminó con el código \(codigo). El detalle está en «Detalles técnicos».",
-                                "yt-dlp exited with code \(codigo). See \"Technical details\" for more."))
+            e.etapa = .fallo(e.ultimoError
+                ?? tr("yt-dlp terminó con el código \(codigo). El detalle está en «Detalles técnicos».",
+                      "yt-dlp exited with code \(codigo). See \"Technical details\" for more."))
         }
         siguiente()
     }
@@ -664,6 +847,10 @@ final class Cola: ObservableObject {
         if canceladas.remove(ObjectIdentifier(fila)) != nil { fila.etapa = .cancelada; return }
 
         guard codigo == 0 else {
+            if fila.reintentos < Elemento.maxReintentos {
+                reprogramar(fila) { [weak self] in self?.leer(fila, yaEnLaCola: true) }
+                return
+            }
             let linea = error.components(separatedBy: "\n").last { $0.hasPrefix("ERROR:") }
             fila.etapa = .fallo(linea.map(mensajeDeError)
                                 ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo)."))
@@ -686,6 +873,10 @@ final class Cola: ObservableObject {
         var videos: [(enlace: String, info: InfoVideo)] = []
         for v in entradas {
             let id = v["id"] as? String
+            if Filtro.descartado(id: id, titulo: v["title"] as? String,
+                                 fuentes: [v["channel"], v["channel_id"], v["uploader"], v["uploader_id"]].map { $0 as? String }) {
+                continue
+            }
             var enlace = v["url"] as? String ?? v["webpage_url"] as? String
             if enlace?.hasPrefix("http") != true, let id { enlace = "https://www.youtube.com/watch?v=\(id)" }
             guard let enlace else { continue }
@@ -720,6 +911,8 @@ final class Cola: ObservableObject {
             e.nombreLista = nombre.isEmpty ? tr("Lista", "Playlist") : nombre
             e.posicion = "\(i + 1)/\(videos.count)"
             e.info = v.info
+            e.instrumental = Filtro.esInstrumental(v.info.titulo)
+            if e.instrumental && !instrumentales { e.etapa = .pausada }
             sumar(e, en: lugar.map { $0 + i })
         }
         siguiente()
@@ -927,7 +1120,7 @@ struct FilaElemento: View {
         Tarjeta(relleno: 12) {
             HStack(spacing: 12) {
                 Miniatura(url: e.info?.miniatura)
-                    .opacity(e.etapa == .cancelada ? 0.5 : 1)
+                    .opacity(e.etapa == .cancelada ? 0.5 : e.etapa == .pausada ? 0.6 : 1)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(e.info?.titulo ?? e.enlace)
                         .font(.system(size: 13, weight: .semibold))
@@ -938,7 +1131,7 @@ struct FilaElemento: View {
                     }
                     if e.etapa == .bajando || e.etapa == .procesando {
                         BarraDeAvance(valor: e.progreso)
-                    } else if e.etapa == .preparando || e.etapa == .leyendo {
+                    } else if e.etapa == .preparando || e.etapa == .leyendo || e.etapa == .esperando {
                         ProgressView().controlSize(.mini)
                     }
                     Text(e.textoDeEstado)
@@ -965,8 +1158,13 @@ struct FilaElemento: View {
                 BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la cola", "Remove from queue")) { cola.quitar(e) }
             case .leyendo:
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist")) { cola.cancelar(e) }
-            case .preparando, .bajando, .procesando:
+            case .preparando, .bajando, .procesando, .esperando:
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Cancelar esta descarga", "Cancel this download")) { cola.cancelar(e) }
+            case .pausada:
+                BotonIcono(simbolo: "arrow.down.circle", ayuda: tr("Descargar igual", "Download anyway"), color: acento) {
+                    cola.reintentar(e)
+                }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list")) { cola.quitar(e) }
             case .lista:
                 if let archivo = e.archivo {
                     BotonIcono(simbolo: "folder", ayuda: tr("Mostrar en Finder", "Show in Finder")) {
@@ -1006,13 +1204,26 @@ struct Ventana: View {
                 .offset(y: -90)
                 .allowsHitTesting(false)
 
+            VStack(spacing: 0) {
+            // The header stays fixed; the rest of the window scrolls under it.
+            encabezado
+                .padding(.horizontal, 28)
+                .padding(.top, 34)
+                .padding(.bottom, 14)
+                .id(ajustes.idioma)
             ScrollViewReader { desplazar in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    encabezado
                     if !cola.ytDlpInstalado { avisoSinYtDlp }
                     tarjetaEnlaces
-                    selectorFormato
+                    VStack(alignment: .leading, spacing: 10) {
+                        selectorFormato
+                        Toggle(tr("Descargar instrumentales", "Download instrumentals"), isOn: $cola.instrumentales)
+                            .toggleStyle(.checkbox)
+                            .help(tr("Desactivado, los videos con «instrumental» en el título esperan en pausa",
+                                     "When off, videos with \"instrumental\" in the title wait, paused"))
+                            .padding(.leading, 2)
+                    }
                     tarjetaDestino
                     BotonGrande(titulo: tituloDelBoton, simbolo: "arrow.down.circle.fill",
                                 activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) { cola.agregar() }
@@ -1026,7 +1237,7 @@ struct Ventana: View {
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 28)
-                .padding(.top, 34)
+                .padding(.top, 4)
                 .padding(.bottom, 24)
                 // Rebuilds the content when the language changes so every text is redrawn.
                 .id(ajustes.idioma)
@@ -1049,6 +1260,7 @@ struct Ventana: View {
                     campoEnfocado = false
                     withAnimation { desplazar.scrollTo("pregunta", anchor: .center) }
                 }
+            }
             }
             }
         }
@@ -1229,9 +1441,12 @@ struct Ventana: View {
                 if cola.ocupada {
                     Button(tr("Cancelar todo", "Cancel all"), role: .cancel) { cola.cancelarTodo() }.controlSize(.small)
                 }
-                if cola.hayTerminados {
-                    Button(tr("Limpiar terminadas", "Clear finished")) { cola.limpiarTerminados() }.controlSize(.small)
-                }
+                // A switch: while pressed, finished downloads leave the list by themselves.
+                Toggle(tr("Limpiar terminadas", "Clear finished"), isOn: $cola.limpiarSola)
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .help(tr("Activado, cada descarga terminada sale sola de la lista",
+                             "When on, every finished download leaves the list by itself"))
             }
             ForEach(cola.elementos) { e in
                 FilaElemento(e: e, cola: cola)

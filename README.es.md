@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · 20 de octubre de 2026 · versión 1.1.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 21 de octubre de 2026 · versión 1.2.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -59,8 +59,23 @@ canceladas se pueden reintentar o quitar. Una descarga cancelada borra los archi
 creado; los que ya estaban en la carpeta, como una descarga anterior del mismo video en otro formato,
 no se tocan nunca. La salida completa de yt-dlp está en «Detalles técnicos».
 
+Una descarga que falla se reintenta hasta cuatro veces, con dos segundos entre cada intento, y la fila
+muestra qué intento está en curso («Reintento 2/4»). Los archivos a medias se conservan entre intentos,
+así yt-dlp sigue desde donde quedó. Cuando una descarga termina, la aplicación borra además los
+archivos intermedios que yt-dlp no pudo quitar, como el audio original de un MP3 mientras un cliente
+de sincronización de archivos lo tenía abierto.
+
+«Limpiar terminadas» es un interruptor. Mientras está activado, cada descarga que termina o se cancela
+sale sola de la lista y el resumen la sigue contando; las que fallaron quedan, para poder reintentarlas.
+Al activarlo también se limpia lo que ya había terminado. La aplicación recuerda la elección.
+
+Los videos con «instrumental» en el título esperan en la cola, en pausa, salvo que esté marcada
+«Descargar instrumentales». Una fila en pausa se puede bajar sola con su botón de descarga, y al
+marcar la opción se reanudan todas.
+
 El botón ⓘ de la ventana, o Haul > Acerca de Haul en la barra de menús, muestra la versión, qué
 significa el nombre, el autor, la licencia y el enlace a este repositorio, en el idioma de la interfaz.
+El encabezado con ese botón queda fijo arriba de la ventana y el resto se desplaza por debajo.
 
 También se puede iniciar con enlaces desde la Terminal o desde Atajos:
 
@@ -168,7 +183,8 @@ Los errores más frecuentes de yt-dlp se muestran con un texto claro en el idiom
 (video no disponible, video privado, sitio no compatible, sin conexión) y el resto aparece tal como
 lo emite yt-dlp.
 
-Las preferencias (idioma, carpeta, formato, tamaño de la ventana) se guardan en el dominio
+Las preferencias (idioma, carpeta, formato, tamaño de la ventana, «Limpiar terminadas» y
+«Descargar instrumentales») se guardan en el dominio
 `io.github.gabriel-castiglia.haul`. Se restablecen con
 `defaults delete io.github.gabriel-castiglia.haul`.
 
@@ -182,9 +198,13 @@ separada por tabuladores:
 
 | Línea | Contenido | Origen |
 |---|---|---|
+| `META` | id, canal, autor, título y miniatura, que se revisan antes de bajar | `-O pre_process:…` |
 | `INFO` | título, autor, duración, miniatura y nombre del archivo | `-O before_dl:…` |
 | `AVANCE` | porcentaje, velocidad y tiempo restante | `--progress-template` |
 | `ARCHIVO` | ruta final del archivo | `-O after_move:…` |
+
+Los instrumentales en pausa se frenan con `--match-filters`, así yt-dlp no baja nada hasta que se
+permiten.
 
 Compilar sin Xcode impone dos limitaciones, ya resueltas en el código. La primera es que el macro
 `@State` de SwiftUI no está disponible, porque su plugin solo viene con Xcode; en su lugar se usa
