@@ -89,23 +89,21 @@ open -a Haul --args --descargar URL1 URL2
 
 | Format | Result | yt-dlp options |
 |---|---|---|
-| Video | MP4 with H.264 and AAC, up to 1080p on YouTube | `-f bv*+ba/b -S vcodec:h264,res,acodec:aac --merge-output-format mp4` |
+| Video | MP4 with H.264 and AAC, at the highest resolution available in H.264 | `-f bv*+ba/b -S vcodec:h264,res,acodec:aac --merge-output-format mp4` |
 | Audio only | MP3 at the highest quality | `-x --audio-format mp3 --audio-quality 0` |
 
-H.264 is preferred because QuickTime and iOS play it without conversion; without that preference
-YouTube serves AV1 with Opus audio. Files are named after the video title.
+H.264 is preferred because QuickTime and iOS play it without conversion. Files are named after the video title.
 
 ## Playlists
 
-A YouTube playlist link (`youtube.com/playlist?list=…`) or a channel page (`youtube.com/@name`) is
+A playlist link or a channel page is
 read first, without downloading anything, and every video becomes its own row in the queue, with its
 thumbnail and its position ("Mix · 3/12"). The files go into a subfolder named after the playlist and
 are numbered in playlist order: `01 - Title.mp4`, `02 - Title.mp4`, and so on. Each video can be
 cancelled or retried on its own. A playlist with more than 200 videos asks for confirmation first.
 
-A link to a video that was opened from a playlist (`watch?v=…&list=…`) shows a card in the window that
-asks whether to download only that video or the whole playlist. Links to other sites download as
-they are, one video each.
+A link to a video that was opened from a playlist shows a card in the window that
+asks whether to download only that video or the whole playlist. Other links download as they are, one video each.
 
 ## Repository layout
 
@@ -165,8 +163,7 @@ If the Dock keeps showing the old icon, remove the app from the Dock and add it 
 
 Haul is built and tested with yt-dlp 2026.08.19, and that exact copy ships inside the app.
 A pinned version keeps the behavior stable and does not depend on the yt-dlp repository staying
-online. The trade-off is that YouTube changes often, and sooner or later a fixed version stops
-working with it. When that happens, a new release of Haul moves to a newer yt-dlp:
+online. The trade-off is that sites change often, and sooner or later a fixed version stops working with them. When that happens, a new release of Haul moves to a newer yt-dlp:
 
 ```
 scripts/actualizar-yt-dlp.sh <version>
@@ -217,11 +214,11 @@ Haul is a front end; the hard work belongs to these projects:
 | Project | Role in Haul | License |
 |---|---|---|
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp), by the yt-dlp contributors, fork of youtube-dl | Download engine, bundled in `vendor/yt-dlp` | [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE) |
-| [yt-dlp-ejs](https://github.com/yt-dlp/ejs), included in the yt-dlp executable | YouTube JavaScript challenge solver | Unlicense |
+| [yt-dlp-ejs](https://github.com/yt-dlp/ejs), included in the yt-dlp executable | JavaScript challenge solver | Unlicense |
 | [meriyah](https://github.com/meriyah/meriyah), by KFlash and others, inside yt-dlp-ejs | JavaScript parser | [ISC](https://github.com/meriyah/meriyah/blob/main/LICENSE.md) |
 | [astring](https://github.com/davidbonnet/astring), by David Bonnet, inside yt-dlp-ejs | JavaScript code generator | [MIT](https://github.com/davidbonnet/astring/blob/main/LICENSE) |
 | [FFmpeg](https://ffmpeg.org), installed with Homebrew, not bundled | Merges picture and sound, converts to MP3 | [LGPL-2.1+ / GPL-2.0+](https://ffmpeg.org/legal.html), depending on the build |
-| [Deno](https://deno.com), installed with Homebrew | JavaScript runtime used by yt-dlp for YouTube | [MIT](https://github.com/denoland/deno/blob/main/LICENSE.md) |
+| [Deno](https://deno.com), installed with Homebrew | JavaScript runtime used by yt-dlp | [MIT](https://github.com/denoland/deno/blob/main/LICENSE.md) |
 | [Python](https://www.python.org), installed with Homebrew | Runs yt-dlp | [PSF License](https://docs.python.org/3/license.html) |
 | [Homebrew](https://brew.sh) | Installs the dependencies | [BSD-2-Clause](https://github.com/Homebrew/brew/blob/master/LICENSE.txt) |
 | [pandoc](https://pandoc.org), only to build the PDF manuals | Markdown to HTML conversion | [GPL-2.0+](https://github.com/jgm/pandoc/blob/main/COPYRIGHT) |

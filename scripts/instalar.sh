@@ -12,7 +12,7 @@
 # yt-dlp itself is not installed: the app bundles the pinned copy in vendor/yt-dlp.
 # Dependencies it manages (through Homebrew):
 #   python  runs the bundled yt-dlp (3.10 or later)
-#   deno    JavaScript runtime that yt-dlp needs for full YouTube support
+#   deno    JavaScript runtime that yt-dlp needs to solve JavaScript challenges
 #   ffmpeg  merges picture and sound, and converts to MP3
 # If they are already installed, they are upgraded to the latest version.
 
