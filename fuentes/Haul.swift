@@ -532,13 +532,14 @@ final class Cola: ObservableObject {
         guard forzar || (texto.isEmpty && pp.changeCount != ultimoPortapapeles) else { return }
         if !forzar, #available(macOS 15.4, *), pp.accessBehavior != .alwaysAllow { return }
         ultimoPortapapeles = pp.changeCount
-        leerPortapapeles()
+        leerPortapapeles(forzar: forzar)
     }
 
-    private func leerPortapapeles() {
+    // On its own it skips links already in the queue, so a cleared field does not fill up again.
+    private func leerPortapapeles(forzar: Bool) {
         let pp = NSPasteboard.general
         let nuevos = enlaces(en: pp.string(forType: .string) ?? "")
-        let yaEstan = Set(detectados)
+        let yaEstan = Set(detectados).union(forzar ? [] : elementos.map(\.enlace))
         let agregar = nuevos.filter { !yaEstan.contains($0) }
         guard !agregar.isEmpty else { return }
         texto = (texto.isEmpty || texto.hasSuffix("\n") ? texto : texto + "\n")
@@ -559,6 +560,8 @@ final class Cola: ObservableObject {
         let nuevos = detectados
         guard !nuevos.isEmpty else { return }
         texto = ""
+        // The clipboard that held these links counts as read, so it is not pasted back in.
+        ultimoPortapapeles = NSPasteboard.general.changeCount
         pendientes += nuevos
         procesarPendientes()
     }
@@ -1223,10 +1226,19 @@ struct Ventana: View {
                             .help(tr("Desactivado, los videos con «instrumental» en el título esperan en pausa",
                                      "When off, videos with \"instrumental\" in the title wait, paused"))
                             .padding(.leading, 2)
+                        // Kept out of the queue section, which hides itself once the list is empty.
+                        Toggle(tr("Limpiar terminadas automáticamente", "Clear finished automatically"), isOn: $cola.limpiarSola)
+                            .toggleStyle(.checkbox)
+                            .help(tr("Activado, cada descarga terminada sale sola de la lista",
+                                     "When on, every finished download leaves the list by itself"))
+                            .padding(.leading, 2)
                     }
                     tarjetaDestino
                     BotonGrande(titulo: tituloDelBoton, simbolo: "arrow.down.circle.fill",
-                                activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) { cola.agregar() }
+                                activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) {
+                        campoEnfocado = false
+                        cola.agregar()
+                    }
                         .keyboardShortcut(.return, modifiers: .command)
                     preguntas.id("pregunta")
                     if !cola.elementos.isEmpty { listaDeLaCola.id("cola") }
@@ -1441,12 +1453,6 @@ struct Ventana: View {
                 if cola.ocupada {
                     Button(tr("Cancelar todo", "Cancel all"), role: .cancel) { cola.cancelarTodo() }.controlSize(.small)
                 }
-                // A switch: while pressed, finished downloads leave the list by themselves.
-                Toggle(tr("Limpiar terminadas", "Clear finished"), isOn: $cola.limpiarSola)
-                    .toggleStyle(.button)
-                    .controlSize(.small)
-                    .help(tr("Activado, cada descarga terminada sale sola de la lista",
-                             "When on, every finished download leaves the list by itself"))
             }
             ForEach(cola.elementos) { e in
                 FilaElemento(e: e, cola: cola)

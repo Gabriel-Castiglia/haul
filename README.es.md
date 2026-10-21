@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · 21 de octubre de 2026 · versión 1.2.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 21 de octubre de 2026 · versión 1.2.1 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -50,7 +50,8 @@ Volver a ejecutarlo es la forma de actualizar todo: dependencias y aplicación.
 2. Elegir el formato, Video (MP4) o Solo audio (MP3).
 3. Elegir la carpeta de destino. La primera vez es Descargas; después se conserva la última
    elegida, igual que el formato.
-4. Pulsar Descargar o ⌘↩.
+4. Pulsar Descargar o ⌘↩. El recuadro se vacía al empezar la descarga, y un enlace que ya
+   está en la cola no vuelve a entrar solo desde el portapapeles.
 
 Los enlaces entran en una cola y se descargan de a uno. Mientras la cola avanza se pueden agregar
 más enlaces. Cada fila muestra la miniatura, el título, el porcentaje, la velocidad y el tiempo
@@ -65,9 +66,10 @@ así yt-dlp sigue desde donde quedó. Cuando una descarga termina, la aplicació
 archivos intermedios que yt-dlp no pudo quitar, como el audio original de un MP3 mientras un cliente
 de sincronización de archivos lo tenía abierto.
 
-«Limpiar terminadas» es un interruptor. Mientras está activado, cada descarga que termina o se cancela
+La casilla «Limpiar terminadas automáticamente», debajo del formato, está siempre a la vista, aunque
+la cola esté vacía. Mientras está marcada, cada descarga que termina o se cancela
 sale sola de la lista y el resumen la sigue contando; las que fallaron quedan, para poder reintentarlas.
-Al activarlo también se limpia lo que ya había terminado. La aplicación recuerda la elección.
+Al marcarla también se limpia lo que ya había terminado. La aplicación recuerda la elección.
 
 Los videos con «instrumental» en el título esperan en la cola, en pausa, salvo que esté marcada
 «Descargar instrumentales». Una fila en pausa se puede bajar sola con su botón de descarga, y al
@@ -183,7 +185,7 @@ Los errores más frecuentes de yt-dlp se muestran con un texto claro en el idiom
 (video no disponible, video privado, sitio no compatible, sin conexión) y el resto aparece tal como
 lo emite yt-dlp.
 
-Las preferencias (idioma, carpeta, formato, tamaño de la ventana, «Limpiar terminadas» y
+Las preferencias (idioma, carpeta, formato, tamaño de la ventana, «Limpiar terminadas automáticamente» y
 «Descargar instrumentales») se guardan en el dominio
 `io.github.gabriel-castiglia.haul`. Se restablecen con
 `defaults delete io.github.gabriel-castiglia.haul`.
