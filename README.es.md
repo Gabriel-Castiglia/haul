@@ -10,8 +10,8 @@ Versión para Windows: <https://github.com/Gabriel-Castiglia/haul-windows>
 
 Manual en PDF: [`docs/Haul-manual-es.pdf`](docs/Haul-manual-es.pdf)
 
-Haul es una aplicación de macOS que descarga video y audio de YouTube y de los demás sitios
-compatibles con [yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
+Haul es una aplicación de macOS que hace de interfaz de
+[yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
 el progreso y organiza una cola de descargas. El trabajo lo hacen yt-dlp, incluido en la aplicación
 en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés y en castellano, y se elige en el menú Language (Idioma cuando
 la app está en castellano). La primera vez arranca en inglés y después recuerda la elección.

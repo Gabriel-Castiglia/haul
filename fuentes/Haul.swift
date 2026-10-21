@@ -1311,7 +1311,7 @@ struct Ventana: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Haul")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text(tr("Videos y música de YouTube y casi cualquier sitio", "Video and music from YouTube and almost any site"))
+                Text(tr("Una interfaz para yt-dlp", "A front end for yt-dlp"))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
@@ -1504,10 +1504,10 @@ struct AcercaDe: View {
             .padding(.bottom, 4)
             seccion(tr("El nombre", "The name"), tr(
                 "«Haul» es una palabra inglesa: quiere decir acarrear algo pesado y también la carga que uno se trae de "
-                + "vuelta, como la pesca de un día. Eso hace la app: se trae a casa videos y música de YouTube y de casi "
-                + "cualquier sitio.",
+                + "vuelta, como la pesca de un día. Eso hace la app, con yt-dlp de motor: se trae "
+                + "la carga a casa.",
                 "To haul is to carry something heavy, and a haul is the load you bring back, like a day's catch. That is "
-                + "what the app does: it brings video and music home from YouTube and almost any other site."))
+                + "what the app does: with yt-dlp as its engine, it brings the load home."))
             seccion(tr("Autor", "Author"), "Gabriel Castiglia · © 2026")
             seccion(tr("Licencia", "License"), tr(
                 "Software libre bajo la Licencia Pública General de GNU, versión 2 (GPL-2.0-only), la misma del núcleo "
