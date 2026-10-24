@@ -16,8 +16,8 @@ RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 source scripts/firma.sh
 
-VERSION="1.2.1"
-COMPILACION="4"
+VERSION="1.3.0"
+COMPILACION="5"
 APP="build/Haul.app"
 
 rm -rf "$APP"
@@ -47,6 +47,10 @@ cp vendor/yt-dlp/yt-dlp "$APP/Contents/Resources/yt-dlp"
 mkdir -p "$APP/Contents/Resources/licenses"
 cp vendor/yt-dlp/licenses/* "$APP/Contents/Resources/licenses/"
 cp LICENSE "$APP/Contents/Resources/licenses/Haul-LICENSE"
+
+# 3b. Haul's yt-dlp extractor plugin, without Python bytecode
+mkdir -p "$APP/Contents/Resources/plugins"
+rsync -a --exclude '__pycache__' plugins/ "$APP/Contents/Resources/plugins/"
 
 # 4. Info.plist
 cat > "$APP/Contents/Info.plist" <<PLIST

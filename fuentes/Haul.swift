@@ -24,6 +24,9 @@ let rutaPython = carpetaHomebrew + "/python3"
 
 // yt-dlp ships inside the app (Contents/Resources), pinned to the version it was tested with.
 let rutaYtDlp = Bundle.main.path(forResource: "yt-dlp", ofType: nil) ?? ""
+// Haul's yt-dlp extractor plugin (plugins/haul in the repository), for links the pinned version
+// does not handle on its own.
+let rutaComplementos = Bundle.main.path(forResource: "plugins", ofType: nil) ?? ""
 let versionYtDlp = Bundle.main.object(forInfoDictionaryKey: "YtDlpVersion") as? String ?? "?"
 
 // The palette derives from the system accent color (System Settings > Appearance), so the
@@ -109,12 +112,14 @@ func enlaces(en texto: String) -> [String] {
     return resultado
 }
 
-// What a link points to, as far as playlists are concerned. Only YouTube is inspected: links to
-// other sites download as they are, one video each.
+// What a link points to, as far as playlists are concerned. Only YouTube and Substack tag pages
+// are inspected: links to other sites download as they are, one video each.
 enum Clase { case video, lista, videoEnLista }
 
 func clasificar(_ enlace: String) -> Clase {
     guard let c = URLComponents(string: enlace), let host = c.host?.lowercased() else { return .video }
+    // A Substack tag page (/t/<tag>) lists posts; the plugin reads it as a playlist.
+    if host.hasSuffix(".substack.com") && c.path.hasPrefix("/t/") { return .lista }
     let youtube = host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com")
     guard youtube else { return .video }
     let consulta = Dictionary(c.queryItems?.map { ($0.name, $0.value ?? "") } ?? [], uniquingKeysWith: { a, _ in a })
@@ -716,6 +721,7 @@ final class Cola: ObservableObject {
         //   AVANCE   percentage, speed and time remaining (--progress-template)
         //   ARCHIVO  final path, after merging or converting (-O after_move)
         p.arguments = [rutaYtDlp] + e.formato.argumentos + [
+            "--plugin-dirs", rutaComplementos,
             "--newline", "--color", "no_color", "--no-playlist",
             "-o", e.prefijo.map { "\($0) - %(title)s.%(ext)s" } ?? "%(title)s.%(ext)s",
             "--match-filters", Filtro.expresion(instrumentales: instrumentales || e.forzar),
@@ -729,6 +735,8 @@ final class Cola: ObservableObject {
         ]
         var entorno = ProcessInfo.processInfo.environment
         entorno["PATH"] = carpetaHomebrew + ":" + (entorno["PATH"] ?? "/usr/bin:/bin")
+        // Python would otherwise write __pycache__ for the plugin inside the signed app bundle.
+        entorno["PYTHONDONTWRITEBYTECODE"] = "1"
         p.environment = entorno
 
         let tubo = Pipe()
@@ -810,9 +818,12 @@ final class Cola: ObservableObject {
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: rutaPython)
-        p.arguments = [rutaYtDlp, "--flat-playlist", "--yes-playlist", "-J", "--no-warnings", "--", fila.enlace]
+        p.arguments = [rutaYtDlp, "--plugin-dirs", rutaComplementos,
+                       "--flat-playlist", "--yes-playlist", "-J", "--no-warnings", "--", fila.enlace]
         var entorno = ProcessInfo.processInfo.environment
         entorno["PATH"] = carpetaHomebrew + ":" + (entorno["PATH"] ?? "/usr/bin:/bin")
+        // Python would otherwise write __pycache__ for the plugin inside the signed app bundle.
+        entorno["PYTHONDONTWRITEBYTECODE"] = "1"
         p.environment = entorno
 
         // The JSON can be large: it is collected as it arrives so the pipe never fills up.
@@ -1579,6 +1590,11 @@ struct MenuAcercaDe: View {
 final class Delegado: NSObject, NSApplicationDelegate {
     // The app quits when its only window is closed.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    // Haul is dark only, whatever the system appearance: the light version was rejected (24-Oct-2026).
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+    }
 
     // With a hidden title bar SwiftUI ignores .defaultSize, so the initial size is set through
     // AppKit; afterwards the window keeps whatever size and position the user chooses.

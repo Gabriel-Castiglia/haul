@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · October 21, 2026 · version 1.2.1 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · October 24, 2026 · version 1.3.0 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
@@ -14,7 +14,8 @@ Haul is a macOS app that works as a front end for
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). The app builds the command, shows the
 progress and manages a download queue. The actual work is done by yt-dlp, bundled with the app at
 a fixed, verified version, and by ffmpeg, installed with Homebrew. The interface is available in English and Spanish, selectable from the Language
-menu; it starts in English on first launch and remembers the choice.
+menu; it starts in English on first launch and remembers the choice. The window is always dark,
+whatever the system appearance.
 
 ## Requirements
 
@@ -105,6 +106,9 @@ cancelled or retried on its own. A playlist with more than 200 videos asks for c
 A link to a video that was opened from a playlist shows a card in the window that
 asks whether to download only that video or the whole playlist. Other links download as they are, one video each.
 
+Some tag pages that group several posts, each with an embedded video, are read the same way: one
+row per post, from the oldest to the newest, so a series keeps its episode order.
+
 ## Repository layout
 
 | Path | Contents |
@@ -117,6 +121,7 @@ asks whether to download only that video or the whole playlist. Other links down
 | `scripts/firma.sh` | Local signing identity (sourced by `compilar.sh`) |
 | `scripts/manual.sh` | Builds the PDF manuals from the READMEs |
 | `scripts/actualizar-yt-dlp.sh` | Replaces the bundled yt-dlp with another verified release |
+| `plugins/haul/` | Haul's own yt-dlp extractor plugin, for links the bundled version does not handle |
 | `vendor/yt-dlp/` | Bundled copy of yt-dlp 2026.08.19, with sources, checksums, signature and licenses |
 | `docs/Haul-manual-en.pdf`, `docs/Haul-manual-es.pdf` | PDF manuals, in English and Spanish |
 | `docs/manual.css` | Stylesheet for the manuals |
@@ -200,6 +205,14 @@ tab-separated format:
 
 Paused instrumentals are held back with `--match-filters`, so yt-dlp downloads nothing until they
 are allowed.
+
+Some links fail inside yt-dlp itself, its latest release included: a video page that now asks for an
+account although its embedded player does not, and pages whose data moved to a different place.
+Haul ships a yt-dlp extractor plugin of its own in `plugins/haul/`, copied into
+`Contents/Resources/plugins` and passed with `--plugin-dirs`. Plugin extractors are tried before the
+built-in ones, and each one only matches the links it fixes. When the embedded player answers with
+an occasional 401 error, the plugin retries up to three times. Python runs with
+`PYTHONDONTWRITEBYTECODE=1` so it does not write `__pycache__` inside the signed app.
 
 Building without Xcode imposes two limitations, both handled in the code. First, SwiftUI's
 `@State` macro is unavailable, because its plugin ships only with Xcode; the code uses

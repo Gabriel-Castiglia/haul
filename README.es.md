@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · 21 de octubre de 2026 · versión 1.2.1 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 24 de octubre de 2026 · versión 1.3.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -14,7 +14,8 @@ Haul es una aplicación de macOS que hace de interfaz de
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
 el progreso y organiza una cola de descargas. El trabajo lo hacen yt-dlp, incluido en la aplicación
 en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés y en castellano, y se elige en el menú Language (Idioma cuando
-la app está en castellano). La primera vez arranca en inglés y después recuerda la elección.
+la app está en castellano). La primera vez arranca en inglés y después recuerda la elección. La
+ventana es siempre oscura, tenga el sistema el aspecto que tenga.
 
 ## Requisitos
 
@@ -105,6 +106,10 @@ antes de entrar a la cola.
 Un enlace a un video abierto desde una lista muestra en la ventana una tarjeta
 que pregunta si se baja solo ese video o la lista entera. Los demás enlaces se descargan tal cual, un video cada uno.
 
+Algunas páginas de etiqueta que agrupan varias publicaciones, cada una con un video embebido, se leen
+igual: una fila por publicación, de la más vieja a la más nueva, así una serie conserva el orden de
+sus episodios.
+
 ## Estructura del repositorio
 
 | Ruta | Contenido |
@@ -117,6 +122,7 @@ que pregunta si se baja solo ese video o la lista entera. Los demás enlaces se 
 | `scripts/firma.sh` | Identidad de firma local (la carga `compilar.sh`) |
 | `scripts/manual.sh` | Genera los manuales en PDF a partir de los README |
 | `scripts/actualizar-yt-dlp.sh` | Reemplaza el yt-dlp incluido por otra versión verificada |
+| `plugins/haul/` | Complemento de extractores propio de Haul para yt-dlp, para enlaces que la versión incluida no maneja |
 | `vendor/yt-dlp/` | Copia incluida de yt-dlp 2026.08.19, con código fuente, sumas, firma y licencias |
 | `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
 | `docs/manual.css` | Estilo de los manuales |
@@ -204,6 +210,15 @@ separada por tabuladores:
 
 Los instrumentales en pausa se frenan con `--match-filters`, así yt-dlp no baja nada hasta que se
 permiten.
+
+Algunos enlaces fallan dentro del propio yt-dlp, incluso en su última versión: una página de video
+que ahora pide una cuenta aunque su reproductor embebido no la pide, y páginas cuyos datos se
+mudaron de lugar. Haul trae un complemento de extractores propio en `plugins/haul/`, que se copia a
+`Contents/Resources/plugins` y se pasa con `--plugin-dirs`. Los extractores de un complemento se
+prueban antes que los incluidos en yt-dlp, y cada uno solo toma los enlaces que arregla. Cuando el
+reproductor embebido responde con un error 401 esporádico, el complemento reintenta hasta tres
+veces. Python corre con `PYTHONDONTWRITEBYTECODE=1` para no escribir `__pycache__` dentro de la
+aplicación firmada.
 
 Compilar sin Xcode impone dos limitaciones, ya resueltas en el código. La primera es que el macro
 `@State` de SwiftUI no está disponible, porque su plugin solo viene con Xcode; en su lugar se usa
