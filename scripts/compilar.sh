@@ -16,8 +16,8 @@ RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 source scripts/firma.sh
 
-VERSION="1.3.0"
-COMPILACION="5"
+VERSION="1.4.0"
+COMPILACION="6"
 APP="build/Haul.app"
 
 rm -rf "$APP"

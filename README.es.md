@@ -59,7 +59,14 @@ más enlaces. Cada fila muestra la miniatura, el título, el porcentaje, la velo
 restante, y al terminar ofrece mostrar el archivo en el Finder o abrirlo. Las descargas con error o
 canceladas se pueden reintentar o quitar. Una descarga cancelada borra los archivos a medias que había
 creado; los que ya estaban en la carpeta, como una descarga anterior del mismo video en otro formato,
-no se tocan nunca. La salida completa de yt-dlp está en «Detalles técnicos».
+no se tocan nunca.
+
+Cada fila se puede pausar con su botón de pausa y seguir con el de reproducir; mientras tanto, los
+archivos a medias quedan en el disco y la descarga retoma donde quedó. «Pausar todo», arriba de la
+cola, frena la cola entera: la descarga en curso se detiene y espera primera en la fila hasta «Seguir
+todo». «Reintentar todas» aparece cuando alguna descarga falló y vuelve a lanzar todas las fallidas.
+Las filas se arrastran con el mouse para cambiar el orden, y las descargas arrancan en el orden de la
+lista.
 
 Una descarga que falla se reintenta hasta cuatro veces, con dos segundos entre cada intento, y la fila
 muestra qué intento está en curso («Reintento 2/4»). Los archivos a medias se conservan entre intentos,
@@ -78,7 +85,8 @@ marcar la opción se reanudan todas.
 
 El botón ⓘ de la ventana, o Haul > Acerca de Haul en la barra de menús, muestra la versión, qué
 significa el nombre, el autor, la licencia y el enlace a este repositorio, en el idioma de la interfaz.
-El encabezado con ese botón queda fijo arriba de la ventana y el resto se desplaza por debajo.
+Desde el encabezado hasta el botón Descargar todo queda fijo; solo la cola se desplaza, así que
+agregar enlaces nunca mueve la ventana.
 
 También se puede iniciar con enlaces desde la Terminal o desde Atajos:
 
@@ -103,8 +111,10 @@ de la lista y se numeran en el orden de la lista: `01 - Título.mp4`, `02 - Tít
 video se puede cancelar o reintentar por separado. Una lista de más de 200 videos pide confirmación
 antes de entrar a la cola.
 
-Un enlace a un video abierto desde una lista muestra en la ventana una tarjeta
-que pregunta si se baja solo ese video o la lista entera. Los demás enlaces se descargan tal cual, un video cada uno.
+Un enlace a un video abierto desde una lista trae la lista entera mientras esté marcada «Bajar
+listas enteras», que viene marcada. Con la opción desmarcada, una tarjeta en la ventana pregunta cada
+vez si se baja solo ese video o la lista entera. La app recuerda el ajuste. Los demás enlaces se
+descargan tal cual, un video cada uno.
 
 Algunas páginas de etiqueta que agrupan varias publicaciones, cada una con un video embebido, se leen
 igual: una fila por publicación, de la más vieja a la más nueva, así una serie conserva el orden de

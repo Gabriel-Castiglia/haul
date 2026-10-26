@@ -15,6 +15,7 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // Homebrew location on Apple Silicon Macs. Apps launched from the Finder do not inherit the
 // Terminal's PATH, so it is added explicitly when yt-dlp is launched; Python, deno and ffmpeg
@@ -238,8 +239,9 @@ enum Filtro {
 // MARK: - Queue item
 
 // esperando: a failed attempt waits before the next retry. pausada: an instrumental held back.
+// detenida: paused by the user; its partial files are kept so the download resumes.
 enum Etapa: Equatable {
-    case enCola, leyendo, preparando, bajando, procesando, esperando, lista, cancelada, pausada
+    case enCola, leyendo, preparando, bajando, procesando, esperando, lista, cancelada, pausada, detenida
     case fallo(String)
 
     var activa: Bool { [.leyendo, .preparando, .bajando, .procesando, .esperando].contains(self) }
@@ -325,6 +327,16 @@ final class Elemento: ObservableObject, Identifiable {
             previos = []
             reintentos = 0
         }
+    }
+
+    // A pause keeps the progress, the partial files and the list of files that existed before,
+    // so resuming continues where it stopped and cancelling still removes only what it created.
+    func pausar(como nueva: Etapa) {
+        etapa = nueva
+        velocidad = ""
+        restante = ""
+        resto = ""
+        ultimoError = nil
     }
 
     func procesar(_ texto: String) {
@@ -419,6 +431,8 @@ final class Elemento: ObservableObject, Identifiable {
         case .esperando:
             return tr("Falló; reintento \(reintentos) de \(max) en 2 s…", "Failed; retry \(reintentos) of \(max) in 2 s…")
         case .pausada: return tr("En pausa: es un instrumental", "Paused: it is an instrumental")
+        case .detenida:
+            return tr("En pausa", "Paused") + (progreso > 0 ? " · \(Int(progreso * 100)) %" : "")
         case .procesando:
             return intento + (formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…")
                                                 : tr("Uniendo imagen y sonido…", "Merging picture and sound…"))
@@ -450,7 +464,11 @@ final class Cola: ObservableObject {
         didSet { UserDefaults.standard.set(destino.path, forKey: "carpeta") }
     }
     @Published var elementos: [Elemento] = []
-    @Published var registro = ""
+    // While the whole queue is paused nothing new starts; the download that was running goes
+    // back to the queue with its partial files and resumes first.
+    @Published var enPausa = false
+    // The row being dragged to a new place in the queue.
+    var arrastrado: Elemento?
 
     // When on, every download that finishes leaves the list by itself. Turning it on also clears
     // what had already finished.
@@ -471,6 +489,11 @@ final class Cola: ObservableObject {
             siguiente()
         }
     }
+    // When on, a video opened from a playlist brings the whole playlist without asking; when
+    // off, the window asks every time.
+    @Published var listaEntera: Bool {
+        didSet { UserDefaults.standard.set(listaEntera, forKey: "listaEntera") }
+    }
     // Finished downloads already removed from the list while the queue still has work, so the
     // summary keeps counting them.
     private var limpias = 0
@@ -483,6 +506,8 @@ final class Cola: ObservableObject {
     // Playlists being read, and rows whose process was stopped by the user.
     @Published private var lecturas: [ObjectIdentifier: Process] = [:]
     private var canceladas = Set<ObjectIdentifier>()
+    // Rows whose process was stopped by a pause, with the stage they go back to.
+    private var pausando: [ObjectIdentifier: Etapa] = [:]
 
     // Lists longer than this ask for confirmation before filling the queue.
     static let listaGrande = 200
@@ -507,6 +532,7 @@ final class Cola: ObservableObject {
         formato = Formato(rawValue: UserDefaults.standard.string(forKey: "formato") ?? "") ?? .video
         limpiarSola = UserDefaults.standard.bool(forKey: "limpiarSola")
         instrumentales = UserDefaults.standard.bool(forKey: "instrumentales")
+        listaEntera = UserDefaults.standard.object(forKey: "listaEntera") as? Bool ?? true
     }
 
     var ytDlpInstalado: Bool {
@@ -515,11 +541,14 @@ final class Cola: ObservableObject {
     var ocupada: Bool { actual != nil || !lecturas.isEmpty }
     var detectados: [String] { enlaces(en: texto) }
     var hayTerminados: Bool { elementos.contains { $0.etapa.terminada } }
+    var hayFallos: Bool { elementos.contains { if case .fallo = $0.etapa { return true } else { return false } } }
+    // Something the whole-queue pause would hold: a download running or waiting its turn.
+    var hayPendientes: Bool { actual != nil || elementos.contains { $0.etapa == .enCola && !$0.esLectura } }
 
     var resumen: String {
         let listas = elementos.filter { $0.etapa == .lista }.count + limpias
         let fallos = elementos.filter { if case .fallo = $0.etapa { return true } else { return false } }.count
-        let pausadas = elementos.filter { $0.etapa == .pausada }.count
+        let pausadas = elementos.filter { $0.etapa == .pausada || $0.etapa == .detenida }.count
         // A playlist still being read is not counted yet; one that failed is.
         let total = elementos.filter { !($0.esLectura && $0.etapa.activa) }.count + limpias
         var t = tr("\(listas) de \(total) listas", "\(listas) of \(total) done")
@@ -577,7 +606,8 @@ final class Cola: ObservableObject {
             let enlace = pendientes.removeFirst()
             switch clasificar(enlace) {
             case .lista: leer(nuevaFila(enlace, lectura: true))
-            case .videoEnLista: preguntaLista = enlace
+            case .videoEnLista:
+                if listaEntera { leer(nuevaFila(enlace, lectura: true)) } else { preguntaLista = enlace }
             case .video: sumar(nuevaFila(enlace))
             }
         }
@@ -620,6 +650,9 @@ final class Cola: ObservableObject {
 
     func quitar(_ e: Elemento) {
         guard !e.etapa.activa else { return }
+        // A paused download leaves no partial files behind; a queued one may have some from a
+        // whole-queue pause.
+        if e.etapa == .detenida || e.etapa == .enCola { e.borrarRestos() }
         elementos.removeAll { $0 === e }
     }
 
@@ -628,11 +661,13 @@ final class Cola: ObservableObject {
         if let w = esperas.removeValue(forKey: id) { w.cancel(); detener(e) }
         else if let p = lecturas[id] { canceladas.insert(id); p.terminate() }
         else if e === actual { canceladas.insert(id); terminarArbol(proceso) }
-        else if e.etapa == .enCola { e.etapa = .cancelada }
+        else if e.etapa == .detenida || e.etapa == .enCola { e.borrarRestos(); e.etapa = .cancelada; despedir(e) }
     }
 
     func cancelarTodo() {
-        for e in elementos where e.etapa == .enCola || e.etapa == .pausada { e.etapa = .cancelada }
+        enPausa = false
+        for e in elementos where e.etapa == .detenida || e.etapa == .enCola { e.borrarRestos() }
+        for e in elementos where e.etapa == .enCola || e.etapa == .pausada || e.etapa == .detenida { e.etapa = .cancelada }
         for e in elementos {
             if let w = esperas.removeValue(forKey: ObjectIdentifier(e)) { w.cancel(); detener(e) }
         }
@@ -656,6 +691,65 @@ final class Cola: ObservableObject {
         if e.etapa == .pausada { e.forzar = true }
         e.reiniciar()
         if e.esLectura { leer(e, yaEnLaCola: true) } else { siguiente() }
+    }
+
+    func reintentarFallidas() {
+        for e in elementos {
+            if case .fallo = e.etapa { reintentar(e) }
+        }
+    }
+
+    // Pauses one row: a queued one is skipped until resumed; a running one is stopped, keeping
+    // its partial files, so it continues from there.
+    func pausar(_ e: Elemento) {
+        let id = ObjectIdentifier(e)
+        if let w = esperas.removeValue(forKey: id) {
+            w.cancel()
+            if e === actual { actual = nil }
+            e.pausar(como: .detenida)
+            siguiente()
+        } else if e === actual {
+            pausando[id] = .detenida
+            terminarArbol(proceso)
+        } else if e.etapa == .enCola {
+            e.etapa = .detenida
+        }
+    }
+
+    func reanudar(_ e: Elemento) {
+        guard e.etapa == .detenida else { return }
+        e.etapa = .enCola
+        siguiente()
+    }
+
+    // The whole-queue pause: the running download goes back to the queue, first in line.
+    func pausarTodo() {
+        enPausa = true
+        guard let e = actual else { return }
+        let id = ObjectIdentifier(e)
+        if let w = esperas.removeValue(forKey: id) {
+            w.cancel()
+            actual = nil
+            e.pausar(como: .enCola)
+        } else {
+            pausando[id] = .enCola
+            terminarArbol(proceso)
+        }
+    }
+
+    func reanudarTodo() {
+        enPausa = false
+        siguiente()
+    }
+
+    // Moves the dragged row to the place of another one; downloads start in list order.
+    func mover(_ e: Elemento?, a destino: Elemento) {
+        guard let e, e !== destino,
+              let desde = elementos.firstIndex(where: { $0 === e }),
+              let hasta = elementos.firstIndex(where: { $0 === destino }) else { return }
+        withAnimation(.easeOut(duration: 0.15)) {
+            elementos.move(fromOffsets: IndexSet(integer: desde), toOffset: hasta > desde ? hasta + 1 : hasta)
+        }
     }
 
     func limpiarTerminados() {
@@ -698,7 +792,7 @@ final class Cola: ObservableObject {
 
     // Processes the queue serially: the next download starts when the previous one ends.
     private func siguiente() {
-        guard actual == nil, let e = elementos.first(where: { $0.etapa == .enCola && !$0.esLectura }) else { return }
+        guard !enPausa, actual == nil, let e = elementos.first(where: { $0.etapa == .enCola && !$0.esLectura }) else { return }
         iniciar(e)
     }
 
@@ -742,13 +836,10 @@ final class Cola: ObservableObject {
         let tubo = Pipe()
         p.standardOutput = tubo
         p.standardError = tubo
-        tubo.fileHandleForReading.readabilityHandler = { [weak self, weak e] h in
+        tubo.fileHandleForReading.readabilityHandler = { [weak e] h in
             let datos = h.availableData
             guard !datos.isEmpty, let texto = String(data: datos, encoding: .utf8) else { return }
-            Task { @MainActor in
-                self?.registro += texto
-                e?.procesar(texto)
-            }
+            Task { @MainActor in e?.procesar(texto) }
         }
         p.terminationHandler = { [weak self, weak e] proc in
             tubo.fileHandleForReading.readabilityHandler = nil
@@ -760,7 +851,6 @@ final class Cola: ObservableObject {
             }
         }
 
-        registro += "── \(e.enlace) ──\n"
         e.etapa = .preparando
         actual = e
         do {
@@ -775,6 +865,12 @@ final class Cola: ObservableObject {
 
     private func terminar(_ e: Elemento, codigo: Int32, motivo: Process.TerminationReason) {
         proceso = nil
+        if let nueva = pausando.removeValue(forKey: ObjectIdentifier(e)) {
+            actual = nil
+            e.pausar(como: nueva)
+            siguiente()
+            return
+        }
         let cancelada = canceladas.remove(ObjectIdentifier(e)) != nil || motivo == .uncaughtSignal
         let fallo = !cancelada && !e.descartado && (codigo != 0 || e.ultimoError != nil)
         if fallo && e.reintentos < Elemento.maxReintentos {
@@ -801,8 +897,7 @@ final class Cola: ObservableObject {
             // The yt-dlp error message was already recorded by procesar(_:).
         } else {
             e.etapa = .fallo(e.ultimoError
-                ?? tr("yt-dlp terminó con el código \(codigo). El detalle está en «Detalles técnicos».",
-                      "yt-dlp exited with code \(codigo). See \"Technical details\" for more."))
+                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo)."))
         }
         siguiente()
     }
@@ -846,7 +941,6 @@ final class Cola: ObservableObject {
             }
         }
 
-        registro += "── \(fila.enlace) (\(tr("lista", "playlist"))) ──\n"
         do {
             try p.run()
             lecturas[ObjectIdentifier(fila)] = p
@@ -857,7 +951,6 @@ final class Cola: ObservableObject {
 
     private func leida(_ fila: Elemento, codigo: Int32, json: Data, error: String) {
         lecturas[ObjectIdentifier(fila)] = nil
-        registro += error
         if canceladas.remove(ObjectIdentifier(fila)) != nil { fila.etapa = .cancelada; return }
 
         guard codigo == 0 else {
@@ -1134,7 +1227,7 @@ struct FilaElemento: View {
         Tarjeta(relleno: 12) {
             HStack(spacing: 12) {
                 Miniatura(url: e.info?.miniatura)
-                    .opacity(e.etapa == .cancelada ? 0.5 : e.etapa == .pausada ? 0.6 : 1)
+                    .opacity(e.etapa == .cancelada ? 0.5 : e.etapa == .pausada || e.etapa == .detenida ? 0.6 : 1)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(e.info?.titulo ?? e.enlace)
                         .font(.system(size: 13, weight: .semibold))
@@ -1152,7 +1245,6 @@ struct FilaElemento: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(colorDeEstado)
                         .lineLimit(2)
-                        .textSelection(.enabled)
                 }
                 Spacer(minLength: 0)
                 acciones
@@ -1169,11 +1261,18 @@ struct FilaElemento: View {
         HStack(spacing: 4) {
             switch e.etapa {
             case .enCola:
+                if !e.esLectura {
+                    BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause")) { cola.pausar(e) }
+                }
                 BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la cola", "Remove from queue")) { cola.quitar(e) }
             case .leyendo:
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist")) { cola.cancelar(e) }
             case .preparando, .bajando, .procesando, .esperando:
+                BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause")) { cola.pausar(e) }
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Cancelar esta descarga", "Cancel this download")) { cola.cancelar(e) }
+            case .detenida:
+                BotonIcono(simbolo: "play.circle", ayuda: tr("Seguir", "Resume"), color: acento) { cola.reanudar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list")) { cola.quitar(e) }
             case .pausada:
                 BotonIcono(simbolo: "arrow.down.circle", ayuda: tr("Descargar igual", "Download anyway"), color: acento) {
                     cola.reintentar(e)
@@ -1205,7 +1304,6 @@ struct FilaElemento: View {
 struct Ventana: View {
     @FocusState private var campoEnfocado: Bool
     @StateObject private var cola = Cola()
-    @StateObject private var verDetalles = Marca()
     @ObservedObject private var ajustes = Ajustes.shared
 
     var body: some View {
@@ -1219,41 +1317,30 @@ struct Ventana: View {
                 .allowsHitTesting(false)
 
             VStack(spacing: 0) {
-            // The header stays fixed; the rest of the window scrolls under it.
-            encabezado
-                .padding(.horizontal, 28)
-                .padding(.top, 34)
-                .padding(.bottom, 14)
-                .id(ajustes.idioma)
+            // Everything down to the Download button stays fixed; only the queue scrolls.
+            VStack(alignment: .leading, spacing: 14) {
+                encabezado
+                if !cola.ytDlpInstalado { avisoSinYtDlp }
+                tarjetaEnlaces
+                selectorFormato
+                opciones
+                tarjetaDestino
+                BotonGrande(titulo: tituloDelBoton, simbolo: "arrow.down.circle.fill",
+                            activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) {
+                    campoEnfocado = false
+                    cola.agregar()
+                }
+                    .keyboardShortcut(.return, modifiers: .command)
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 24)
+            .padding(.bottom, 14)
+            .id(ajustes.idioma)
             ScrollViewReader { desplazar in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if !cola.ytDlpInstalado { avisoSinYtDlp }
-                    tarjetaEnlaces
-                    VStack(alignment: .leading, spacing: 10) {
-                        selectorFormato
-                        Toggle(tr("Descargar instrumentales", "Download instrumentals"), isOn: $cola.instrumentales)
-                            .toggleStyle(.checkbox)
-                            .help(tr("Desactivado, los videos con «instrumental» en el título esperan en pausa",
-                                     "When off, videos with \"instrumental\" in the title wait, paused"))
-                            .padding(.leading, 2)
-                        // Kept out of the queue section, which hides itself once the list is empty.
-                        Toggle(tr("Limpiar terminadas automáticamente", "Clear finished automatically"), isOn: $cola.limpiarSola)
-                            .toggleStyle(.checkbox)
-                            .help(tr("Activado, cada descarga terminada sale sola de la lista",
-                                     "When on, every finished download leaves the list by itself"))
-                            .padding(.leading, 2)
-                    }
-                    tarjetaDestino
-                    BotonGrande(titulo: tituloDelBoton, simbolo: "arrow.down.circle.fill",
-                                activo: !cola.detectados.isEmpty && cola.ytDlpInstalado) {
-                        campoEnfocado = false
-                        cola.agregar()
-                    }
-                        .keyboardShortcut(.return, modifiers: .command)
                     preguntas.id("pregunta")
-                    if !cola.elementos.isEmpty { listaDeLaCola.id("cola") }
-                    detalles
+                    if !cola.elementos.isEmpty { listaDeLaCola }
                     Text(tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), incluido en la app",
                             "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app"))
                         .font(.caption)
@@ -1266,28 +1353,24 @@ struct Ventana: View {
                 .id(ajustes.idioma)
             }
             .scrollBounceBehavior(.basedOnSize)
-            // When links are added, scroll to the queue to show progress.
-            .onChange(of: cola.elementos.count) { antes, ahora in
-                if ahora > antes { withAnimation { desplazar.scrollTo("cola", anchor: .top) } }
-            }
-            // A question appears in the window itself, so it is scrolled into view.
+            // A question appears at the top of the queue area, so it is scrolled into view.
             // The links field gives up the focus, so Return answers the card instead of adding a line.
             .onChange(of: cola.preguntaLista) { _, ahora in
                 if ahora != nil {
                     campoEnfocado = false
-                    withAnimation { desplazar.scrollTo("pregunta", anchor: .center) }
+                    withAnimation { desplazar.scrollTo("pregunta", anchor: .top) }
                 }
             }
             .onChange(of: cola.confirmacionGrande?.id) { _, ahora in
                 if ahora != nil {
                     campoEnfocado = false
-                    withAnimation { desplazar.scrollTo("pregunta", anchor: .center) }
+                    withAnimation { desplazar.scrollTo("pregunta", anchor: .top) }
                 }
             }
             }
             }
         }
-        .frame(minWidth: 560, idealWidth: 620, minHeight: 560, idealHeight: 780)
+        .frame(minWidth: 560, idealWidth: 620, minHeight: 720, idealHeight: 860)
         .containerBackground(.thinMaterial, for: .window)
         .onAppear {
             // Launching with links from Terminal or Shortcuts:
@@ -1317,14 +1400,10 @@ struct Ventana: View {
         HStack(spacing: 14) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
-                .frame(width: 64, height: 64)
+                .frame(width: 52, height: 52)
                 .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Haul")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                Text(tr("Una interfaz para yt-dlp", "A front end for yt-dlp"))
-                    .foregroundStyle(.secondary)
-            }
+            Text("Haul")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
             Spacer(minLength: 8)
             Button { VentanaAcercaDe.mostrar() } label: {
                 Image(systemName: "info.circle").font(.system(size: 17))
@@ -1406,6 +1485,28 @@ struct Ventana: View {
         }
     }
 
+    // Kept out of the queue section, which hides itself once the list is empty.
+    private var opciones: some View {
+        Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
+            GridRow {
+                Toggle(tr("Bajar listas enteras", "Download whole playlists"), isOn: $cola.listaEntera)
+                    .help(tr("Activado, un video que está dentro de una lista trae la lista entera; desactivado, pregunta cada vez",
+                             "When on, a video that is part of a playlist brings the whole playlist; when off, it asks every time"))
+                Toggle(tr("Descargar instrumentales", "Download instrumentals"), isOn: $cola.instrumentales)
+                    .help(tr("Desactivado, los videos con «instrumental» en el título esperan en pausa",
+                             "When off, videos with \"instrumental\" in the title wait, paused"))
+            }
+            GridRow {
+                Toggle(tr("Limpiar terminadas automáticamente", "Clear finished automatically"), isOn: $cola.limpiarSola)
+                    .help(tr("Activado, cada descarga terminada sale sola de la lista",
+                             "When on, every finished download leaves the list by itself"))
+                    .gridCellColumns(2)
+            }
+        }
+        .toggleStyle(.checkbox)
+        .padding(.leading, 2)
+    }
+
     private var tarjetaDestino: some View {
         Tarjeta {
             HStack(spacing: 10) {
@@ -1461,33 +1562,44 @@ struct Ventana: View {
                 Text(tr("Cola", "Queue")).font(.headline)
                 Text(cola.resumen).font(.callout).foregroundStyle(.secondary)
                 Spacer()
-                if cola.ocupada {
-                    Button(tr("Cancelar todo", "Cancel all"), role: .cancel) { cola.cancelarTodo() }.controlSize(.small)
+                HStack(spacing: 6) {
+                    if cola.hayFallos {
+                        Button(tr("Reintentar todas", "Retry all")) { cola.reintentarFallidas() }
+                    }
+                    if cola.enPausa {
+                        Button(tr("Seguir todo", "Resume all")) { cola.reanudarTodo() }
+                    } else if cola.hayPendientes {
+                        Button(tr("Pausar todo", "Pause all")) { cola.pausarTodo() }
+                    }
+                    if cola.ocupada || cola.enPausa {
+                        Button(tr("Cancelar todo", "Cancel all"), role: .cancel) { cola.cancelarTodo() }
+                    }
                 }
+                .controlSize(.small)
             }
+            // Rows can be dragged to another place; downloads start in list order.
             ForEach(cola.elementos) { e in
                 FilaElemento(e: e, cola: cola)
+                    .onDrag {
+                        cola.arrastrado = e
+                        return NSItemProvider(object: e.id.uuidString as NSString)
+                    }
+                    .onDrop(of: [.plainText], delegate: SoltarEnFila(destino: e, cola: cola))
             }
         }
     }
+}
 
-    @ViewBuilder private var detalles: some View {
-        if !cola.registro.isEmpty {
-            DisclosureGroup(tr("Detalles técnicos", "Technical details"), isExpanded: $verDetalles.valor) {
-                ScrollView {
-                    Text(cola.registro)
-                        .font(.system(size: 11, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding(10)
-                }
-                .frame(height: 140)
-                .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
-                .padding(.top, 6)
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-        }
+// Reorders the queue while a row is dragged over the others.
+struct SoltarEnFila: DropDelegate {
+    let destino: Elemento
+    let cola: Cola
+
+    func dropEntered(info: DropInfo) { cola.mover(cola.arrastrado, a: destino) }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool {
+        cola.arrastrado = nil
+        return true
     }
 }
 
