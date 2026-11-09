@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · 24 de octubre de 2026 · versión 1.3.0 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 9 de noviembre de 2026 · versión 1.4.1 · licencia GPL-2.0 · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -21,12 +21,37 @@ ventana es siempre oscura, tenga el sistema el aspecto que tenga.
 
 - macOS 15 o posterior, en una Mac con chip Apple. Se probó en macOS 27.
 - [Homebrew](https://brew.sh) en `/opt/homebrew`.
-- Command Line Tools de Apple (`xcode-select --install`). No se necesita Xcode.
+- Para compilar desde el código: Command Line Tools de Apple (`xcode-select --install`). No se
+  necesita Xcode.
 
 yt-dlp viene dentro de la aplicación, y Python, deno y ffmpeg los instala el instalador, así que no
 hay que instalar nada a mano.
 
 ## Instalación
+
+### Con el paquete de instalación
+
+Descarga `Haul-<versión>.pkg` de la
+[página de versiones](https://github.com/Gabriel-Castiglia/haul/releases) y ábrelo. El instalador está
+en inglés o en castellano, según el idioma de la Mac. Comprueba que Homebrew esté instalado y, si no
+lo está, se detiene con un aviso; después instala `Haul.app` en `/Applications`, cerrando antes una
+copia abierta, e instala Python, deno y ffmpeg con Homebrew, o los actualiza si ya están. La primera
+vez ese paso puede tardar unos minutos. Instalar un paquete más nuevo actualiza Haul y conserva sus
+ajustes.
+
+El paquete no está firmado con un Developer ID de Apple, así que la primera vez macOS se niega a
+abrirlo («Apple no pudo verificar…»). Abre Ajustes del Sistema → Privacidad y seguridad, baja hasta el
+aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La app instalada abre sin
+avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
+
+```
+shasum -a 256 Haul-1.4.1.pkg
+```
+
+Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
+quedan, porque otros programas pueden usarlos; `brew uninstall` los borra.
+
+### Desde el código
 
 ```
 git clone https://github.com/Gabriel-Castiglia/haul.git
@@ -41,7 +66,9 @@ El instalador:
    aplicación con la identidad local (ver «Firma y permisos»);
 3. la copia a `/Applications/Haul.app`, cerrándola antes si estaba abierta.
 
-Volver a ejecutarlo es la forma de actualizar todo: dependencias y aplicación.
+Volver a ejecutarlo es la forma de actualizar todo: dependencias y aplicación. `scripts/paquete.sh`
+arma en cambio el paquete de instalación, en `build/`. Una copia instalada con el paquete pertenece a
+root, así que `scripts/instalar.sh` se detiene y dice cómo quitarla antes.
 
 ## Uso
 
@@ -128,6 +155,8 @@ sus episodios.
 | `icono/icono.html` | Ícono en SVG |
 | `icono/icono-1024.png` | Ícono renderizado, origen de todos los tamaños |
 | `scripts/instalar.sh` | Dependencias, compilación e instalación |
+| `scripts/paquete.sh` | Arma el paquete de instalación `build/Haul-<versión>.pkg` |
+| `instalador/` | Definición del paquete: `Distribution.xml`, los scripts que cierran Haul e instalan los paquetes de Homebrew, y las páginas en inglés y en castellano |
 | `scripts/compilar.sh` | Compilación y firma en `build/` |
 | `scripts/firma.sh` | Identidad de firma local (la carga `compilar.sh`) |
 | `scripts/manual.sh` | Genera los manuales en PDF a partir de los README |
@@ -137,6 +166,7 @@ sus episodios.
 | `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
 | `docs/manual.css` | Estilo de los manuales |
 | `README.es.md`, `README.md` | Esta documentación, en castellano y en inglés |
+| `CHANGELOG.md` | Historial de versiones |
 
 La carpeta `build/` se genera al compilar y no forma parte del repositorio.
 
@@ -153,8 +183,9 @@ signing)», que `scripts/firma.sh` crea la primera vez en la Mac donde se compil
   `haul-local-signing`.
 
 Con esa firma, los permisos concedidos una vez se mantienen entre versiones. El certificado solo
-existe en la Mac donde se creó: una copia ya compilada que se lleve a otra Mac se abre la primera
-vez con clic derecho y Abrir.
+existe en la Mac donde se creó. La app que va dentro del paquete de instalación lleva la firma de la
+Mac que armó la versión, la misma en todas, así que los permisos también se mantienen al actualizar
+con paquetes.
 
 El pegado automático de enlaces al abrir la aplicación funciona solo si el acceso al portapapeles
 está en «Permitir siempre» (Ajustes del Sistema, Privacidad y seguridad, Pegar desde otras apps).

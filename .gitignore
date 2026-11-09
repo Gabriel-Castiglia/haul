@@ -1,3 +1,11 @@
 build/
 .DS_Store
 __pycache__/
+
+# Internal notes (history, build sessions, plans): kept with the working copy, never published
+_internal/
+._*
+*.log
+Thumbs.db
+desktop.ini
+.vscode/

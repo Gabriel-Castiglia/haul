@@ -1,0 +1,26 @@
+#!/bin/sh
+# Haul package: installs or upgrades the Homebrew packages the app runs on.
+#   python  runs the bundled yt-dlp
+#   deno    JavaScript runtime that yt-dlp needs to solve JavaScript challenges
+#   ffmpeg  merges picture and sound, and converts to MP3
+# Homebrew refuses to run as root, so it runs as the owner of /opt/homebrew.
+# Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
+# SPDX-License-Identifier: GPL-2.0-only
+brew=/opt/homebrew/bin/brew
+owner=$(/usr/bin/stat -f %Su /opt/homebrew)
+home=$(/usr/bin/dscacheutil -q user -a name "$owner" | /usr/bin/awk '/^dir:/ {print $2}')
+run() {
+    cd "$home" && /usr/bin/sudo -u "$owner" -H /usr/bin/env HOME="$home" \
+        HOMEBREW_NO_AUTOREMOVE=1 HOMEBREW_NO_ENV_HINTS=1 HOMEBREW_NO_INSTALL_CLEANUP=1 "$brew" "$@"
+}
+status=0
+for formula in python deno ffmpeg; do
+    if run list --formula "$formula" >/dev/null 2>&1; then
+        echo "Haul: upgrading $formula"
+        run upgrade "$formula" || true   # nothing to upgrade is not a failure
+    else
+        echo "Haul: installing $formula"
+        run install "$formula" || status=1
+    fi
+done
+exit $status

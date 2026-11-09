@@ -21,6 +21,13 @@ RAIZ="${0:A:h:h}"
 BREW=/opt/homebrew/bin/brew
 DESTINO=/Applications/Haul.app
 
+# A copy installed by the package belongs to root; this script, run without sudo, cannot replace it.
+if [[ -d $DESTINO && ! -O $DESTINO ]]; then
+    echo "$DESTINO was installed by the package and belongs to $(stat -f %Su "$DESTINO")." >&2
+    echo "Update it with a newer package, or run: sudo rm -rf $DESTINO && $0" >&2
+    exit 1
+fi
+
 if [[ ! -x $BREW ]]; then
     echo "Homebrew is missing. See https://brew.sh" >&2
     exit 1

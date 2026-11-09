@@ -1,6 +1,6 @@
 # Haul
 
-Gabriel Castiglia · October 24, 2026 · version 1.3.0 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · November 9, 2026 · version 1.4.1 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
@@ -21,12 +21,36 @@ whatever the system appearance.
 
 - macOS 15 or later, on a Mac with Apple silicon. Tested on macOS 27.
 - [Homebrew](https://brew.sh) in `/opt/homebrew`.
-- Apple's Command Line Tools (`xcode-select --install`). Xcode is not needed.
+- To build from source: Apple's Command Line Tools (`xcode-select --install`). Xcode is not needed.
 
 yt-dlp ships with the app. Python, deno and ffmpeg are installed by the installer, so nothing has to be
 installed by hand.
 
 ## Installation
+
+### With the installer package
+
+Download `Haul-<version>.pkg` from the
+[releases page](https://github.com/Gabriel-Castiglia/haul/releases) and open it. The installer is in
+English or Spanish, following the language of the Mac. It checks that Homebrew is installed and stops
+with a message if it is not; then it installs `Haul.app` in `/Applications`, quitting a running copy
+first, and installs Python, deno and ffmpeg with Homebrew or upgrades them if they are already there.
+The first time that step can take a few minutes. Installing a newer package updates Haul and keeps its
+settings.
+
+The package is not signed with an Apple Developer ID, so the first time macOS refuses to open it
+("Apple could not verify…"). Open System Settings → Privacy & Security, scroll to the message about
+`Haul-<version>.pkg` and click Open Anyway, then confirm. The installed app opens normally. The
+`SHA256SUMS.txt` file of each release lets you check the download first:
+
+```
+shasum -a 256 Haul-1.4.1.pkg
+```
+
+To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
+because other programs may use them; `brew uninstall` removes them.
+
+### From source
 
 ```
 git clone https://github.com/Gabriel-Castiglia/haul.git
@@ -41,7 +65,9 @@ The installer:
    the local identity (see "Signing and permissions");
 3. copies it to `/Applications/Haul.app`, quitting it first if it is running.
 
-Running it again is how everything gets updated, dependencies and app alike.
+Running it again is how everything gets updated, dependencies and app alike. `scripts/paquete.sh`
+builds the installer package instead, in `build/`. A copy installed by the package belongs to root, so
+`scripts/instalar.sh` stops and says how to remove it first.
 
 ## Usage
 
@@ -126,6 +152,8 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | `icono/icono-1024.png` | Rendered icon, source for every size |
 | `scripts/instalar.sh` | Dependencies, build and installation |
 | `scripts/compilar.sh` | Build and signing into `build/` |
+| `scripts/paquete.sh` | Builds the installer package `build/Haul-<version>.pkg` |
+| `instalador/` | Package definition: `Distribution.xml`, the scripts that quit Haul and install the Homebrew packages, and the pages in English and Spanish |
 | `scripts/firma.sh` | Local signing identity (sourced by `compilar.sh`) |
 | `scripts/manual.sh` | Builds the PDF manuals from the READMEs |
 | `scripts/actualizar-yt-dlp.sh` | Replaces the bundled yt-dlp with another verified release |
@@ -134,6 +162,7 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | `docs/Haul-manual-en.pdf`, `docs/Haul-manual-es.pdf` | PDF manuals, in English and Spanish |
 | `docs/manual.css` | Stylesheet for the manuals |
 | `README.md`, `README.es.md` | This documentation, in English and Spanish |
+| `CHANGELOG.md` | Version history |
 
 The `build/` folder is generated at build time and is not part of the repository.
 
@@ -149,8 +178,9 @@ signing)", which `scripts/firma.sh` creates the first time on the Mac where the 
 - that keychain's password lives in the login keychain, under the name `haul-local-signing`.
 
 With that signature, permissions granted once are kept across versions. The certificate exists
-only on the Mac where it was created: a built copy taken to another Mac must be opened the first
-time with right-click and Open.
+only on the Mac where it was created. The app inside the installer package carries the signature of
+the Mac that built the release, the same in every release, so permissions are kept across updates
+installed from packages too.
 
 Automatic pasting of links when the app opens works only if clipboard access is set to "Always
 Allow" (System Settings, Privacy & Security, Paste from Other Apps). Without that permission the

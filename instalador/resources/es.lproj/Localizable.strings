@@ -1,0 +1,4 @@
+/* Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only. SPDX-License-Identifier: GPL-2.0-only */
+"SU_TITLE" = "Haul";
+"SU_BREW_TITLE" = "Hace falta Homebrew";
+"SU_BREW_MESSAGE" = "Haul usa Python, deno y ffmpeg de Homebrew, y el instalador los instala con él. Instala Homebrew desde https://brew.sh y vuelve a abrir este paquete.";

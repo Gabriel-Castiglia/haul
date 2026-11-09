@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Haul installer package. scripts/paquete.sh fills in @VERSION@.
+     Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
+     SPDX-License-Identifier: GPL-2.0-only -->
+<installer-gui-script minSpecVersion="2">
+    <title>SU_TITLE</title>
+    <welcome file="Welcome.html" mime-type="text/html"/>
+    <license file="License.txt" mime-type="text/plain"/>
+    <conclusion file="Conclusion.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="true" hostArchitectures="arm64"/>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="15.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <installation-check script="haul_check()"/>
+    <script>
+    <![CDATA[
+    function haul_check() {
+        // Python, deno and ffmpeg come from Homebrew; without it the app cannot work.
+        if (!system.files.fileExistsAtPath('/opt/homebrew/bin/brew')) {
+            my.result.title = system.localizedString('SU_BREW_TITLE');
+            my.result.message = system.localizedString('SU_BREW_MESSAGE');
+            my.result.type = 'Fatal';
+            return false;
+        }
+        return true;
+    }
+    ]]>
+    </script>
+    <choices-outline>
+        <line choice="default">
+            <line choice="io.github.gabriel-castiglia.haul.pkg"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="io.github.gabriel-castiglia.haul.pkg" visible="false">
+        <pkg-ref id="io.github.gabriel-castiglia.haul.pkg"/>
+    </choice>
+    <pkg-ref id="io.github.gabriel-castiglia.haul.pkg" version="@VERSION@" onConclusion="none">Haul-component.pkg</pkg-ref>
+</installer-gui-script>
