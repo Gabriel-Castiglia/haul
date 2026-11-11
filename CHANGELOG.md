@@ -2,6 +2,14 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.5.1 - 2026-11-11
+
+### Fixed
+
+- The icon in the Dock kept the default orange while Haul was open with another colour: it was set before the
+  Dock tile existed. It is now set again once Haul has started.
+- The README explains how to empty the Dock's icon cache when it keeps showing an old icon.
+
 ## 1.5.0 - 2026-11-11
 
 ### Added

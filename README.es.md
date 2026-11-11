@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 11 de noviembre de 2026 · versión 1.5.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 11 de noviembre de 2026 · versión 1.5.1 · GPL-2.0-only · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -50,7 +50,7 @@ aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La a
 avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
 
 ```
-shasum -a 256 Haul-1.5.0.pkg
+shasum -a 256 Haul-1.5.1.pkg
 ```
 
 Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
@@ -214,7 +214,8 @@ El ícono es el águila que trae una liebre del grabado «Águila que le trae un
 Monogramista B (Italia, siglo XVII), Rijksmuseum, dominio público (CC0). `scripts/make_icon.py` la recorta
 del escaneo de `assets/` y la dibuja sobre cada color; necesita Python con numpy, opencv-python, scipy y
 Pillow. Después de volver a dibujarlo, `scripts/instalar.sh` reinstala la app. Si el Dock conserva el
-ícono anterior, hay que quitar la aplicación del Dock y volver a agregarla.
+ícono anterior, se cierra Haul y se vacía la caché de íconos del Dock:
+`rm "$(getconf DARWIN_USER_CACHE_DIR)com.apple.dock.iconcache"; killall Dock`.
 
 ## Versiones nuevas
 

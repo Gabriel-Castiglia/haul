@@ -1946,6 +1946,9 @@ final class Delegado: NSObject, NSApplicationDelegate {
             }
             w.setFrameAutosaveName("Haul")
         }
+        // The Dock tile only exists now: an icon set in applicationWillFinishLaunching never reaches it (measured on
+        // macOS 27: the Dock kept the icon of the bundle), so the colour of the icon is applied again here.
+        DispatchQueue.main.async { Tema.shared.aplicar() }
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 20_000_000_000)
             await Versiones.revisarSiToca()

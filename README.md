@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 11, 2026 · version 1.5.0 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · November 11, 2026 · version 1.5.1 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
@@ -49,7 +49,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.5.0.pkg
+shasum -a 256 Haul-1.5.1.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
@@ -208,7 +208,8 @@ The icon is the eagle carrying a hare from the engraving "Eagle bringing a young
 Monogrammist B (Italy, 17th century), Rijksmuseum, public domain (CC0). `scripts/make_icon.py` cuts it
 out of the scan in `assets/` and draws it on each colour; it needs Python with numpy, opencv-python,
 scipy and Pillow. After drawing it again, `scripts/instalar.sh` reinstalls the app. If the Dock keeps
-showing the old icon, remove the app from the Dock and add it again.
+showing the old icon, quit Haul and empty the Dock's icon cache:
+`rm "$(getconf DARWIN_USER_CACHE_DIR)com.apple.dock.iconcache"; killall Dock`.
 
 ## New versions
 
