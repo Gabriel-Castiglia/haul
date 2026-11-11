@@ -30,11 +30,156 @@ let rutaYtDlp = Bundle.main.path(forResource: "yt-dlp", ofType: nil) ?? ""
 let rutaComplementos = Bundle.main.path(forResource: "plugins", ofType: nil) ?? ""
 let versionYtDlp = Bundle.main.object(forInfoDictionaryKey: "YtDlpVersion") as? String ?? "?"
 
-// The palette derives from the system accent color (System Settings > Appearance), so the
-// interface follows any accent change without rebuilding.
-let acento = Color.accentColor
-let degrade = LinearGradient(colors: [acento, acento.mix(with: .black, by: 0.35)],
-                             startPoint: .topLeading, endPoint: .bottomTrailing)
+// The palette comes from the colour chosen in the Appearance menu (Tema, below): a deeper tone on a light
+// window, a brighter one on a dark window.
+var acento: Color { Tema.shared.acento }
+var degrade: LinearGradient {
+    LinearGradient(colors: [acento, acento.mix(with: .black, by: 0.35)], startPoint: .topLeading, endPoint: .bottomTrailing)
+}
+// Text and symbols on a fill of the accent: nearly black on the pale tones, white otherwise.
+var sobreAcento: Color { Tema.shared.sobreAcento }
+
+// MARK: - Theme
+
+// An accent colour: the tile of the Dock icon (icono/accents/<key>.png, drawn by scripts/make_icon.py with the
+// same keys and the deeper tone as the tile) and the highlight colour of the window.
+struct ColorTema: Identifiable {
+    let clave, es, en: String
+    let hondo, vivo: UInt32
+    var id: String { clave }
+    var nombre: String { tr(es, en) }
+}
+
+let coloresTema: [ColorTema] = [
+    ColorTema(clave: "ember", es: "Naranja", en: "Orange", hondo: 0xD9652F, vivo: 0xF08A5D),    // the default
+    ColorTema(clave: "gold", es: "Dorado", en: "Gold", hondo: 0x9A6F00, vivo: 0xE2B84C),
+    ColorTema(clave: "purple", es: "Morado", en: "Purple", hondo: 0x5B2A86, vivo: 0xB392E0),
+    ColorTema(clave: "sky", es: "Celeste", en: "Sky blue", hondo: 0x1A8CD8, vivo: 0x5CB8F0),
+    ColorTema(clave: "red", es: "Rojo", en: "Red", hondo: 0xC8102E, vivo: 0xF2545B),
+    ColorTema(clave: "yellow", es: "Amarillo", en: "Yellow", hondo: 0xB88A00, vivo: 0xF5C842),
+    ColorTema(clave: "green", es: "Verde", en: "Green", hondo: 0x1E8A43, vivo: 0x4CC27A),
+    ColorTema(clave: "teal", es: "Verde azulado", en: "Teal", hondo: 0x00796B, vivo: 0x4DB6AC),
+    ColorTema(clave: "blue", es: "Azul", en: "Blue", hondo: 0x1F5FD1, vivo: 0x6E9BFF),
+    ColorTema(clave: "pink", es: "Rosa", en: "Pink", hondo: 0xC2185B, vivo: 0xF06292),
+    ColorTema(clave: "black", es: "Negro", en: "Black", hondo: 0x1D1D1F, vivo: 0xC7C7CC),
+    ColorTema(clave: "white", es: "Blanco", en: "White", hondo: 0x8E8E93, vivo: 0xF5F5F7),
+]
+
+func colorRGB(_ v: UInt32) -> NSColor {
+    NSColor(srgbRed: CGFloat(v >> 16 & 0xFF) / 255, green: CGFloat(v >> 8 & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+}
+
+func esOscura(_ a: NSAppearance) -> Bool { a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
+
+// Light, dark or as macOS, and the accent colour, which also colours the icon in the Dock. Chosen in the
+// Appearance menu and remembered between launches.
+final class Tema: ObservableObject {
+    static let shared = Tema()
+
+    // "auto" (as macOS), "light" or "dark".
+    @Published var apariencia: String { didSet { guardar(); aplicar() } }
+    @Published var color: String { didSet { guardar(); aplicar() } }
+    // Grows with every change, so the window redraws with the new colours.
+    @Published private(set) var version = 0
+
+    private init() {
+        let d = UserDefaults.standard
+        // A Haul that already ran (it saved its window frame) keeps the dark window it had; a new one follows macOS.
+        apariencia = d.string(forKey: "apariencia") ?? (d.object(forKey: "NSWindow Frame Haul") != nil ? "dark" : "auto")
+        color = coloresTema.contains { $0.clave == d.string(forKey: "color") } ? d.string(forKey: "color")! : "ember"
+    }
+
+    private func guardar() {
+        UserDefaults.standard.set(apariencia, forKey: "apariencia")
+        UserDefaults.standard.set(color, forKey: "color")
+    }
+
+    var actual: ColorTema { coloresTema.first { $0.clave == color } ?? coloresTema[0] }
+
+    var acento: Color {
+        let c = actual
+        return Color(nsColor: NSColor(name: nil) { colorRGB(esOscura($0) ? c.vivo : c.hondo) })
+    }
+
+    var sobreAcento: Color {
+        let c = actual
+        return Color(nsColor: NSColor(name: nil) { a in
+            let v = esOscura(a) ? c.vivo : c.hondo
+            let lum = 0.2126 * Double(v >> 16 & 0xFF) + 0.7152 * Double(v >> 8 & 0xFF) + 0.0722 * Double(v & 0xFF)
+            return lum / 255 > 0.6 ? NSColor(white: 0.07, alpha: 1) : .white
+        })
+    }
+
+    func icono(_ clave: String) -> NSImage? {
+        Bundle.main.url(forResource: clave, withExtension: "png", subdirectory: "accents").flatMap(NSImage.init(contentsOf:))
+    }
+
+    func aplicar() {
+        switch apariencia {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: NSApp.appearance = nil
+        }
+        if let img = icono(color) { NSApp.applicationIconImage = img }
+        version += 1
+    }
+}
+
+// MARK: - New versions
+
+// Once a day Haul asks GitHub for the number of the latest version and, if it is newer, offers the download
+// page. Nothing is sent but the request itself, and nothing is downloaded or installed.
+enum Versiones {
+    static let api = "https://api.github.com/repos/Gabriel-Castiglia/haul/releases/latest"
+    static let pagina = "https://github.com/Gabriel-Castiglia/haul/releases/latest"
+
+    static func numeros(_ s: String) -> [Int] {
+        s.trimmingCharacters(in: CharacterSet(charactersIn: "vV")).split(separator: ".").map { Int($0) ?? 0 }
+    }
+
+    static func esMasNueva(_ a: String, que b: String) -> Bool {
+        let x = numeros(a), y = numeros(b)
+        for i in 0..<max(x.count, y.count) {
+            let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0
+            if p != q { return p > q }
+        }
+        return false
+    }
+
+    // The latest published version; nil if GitHub did not answer.
+    static func ultima() async -> String? {
+        guard let url = URL(string: api) else { return nil }
+        var pedido = URLRequest(url: url, timeoutInterval: 15)
+        pedido.setValue("Haul/\(versionHaul)", forHTTPHeaderField: "User-Agent")
+        pedido.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        guard let (datos, _) = try? await URLSession.shared.data(for: pedido),
+              let json = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
+              let tag = json["tag_name"] as? String else { return nil }
+        return tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+    }
+
+    @MainActor
+    static func avisar(_ nueva: String) {
+        let alerta = NSAlert()
+        alerta.messageText = tr("Hay una versión nueva de Haul", "A new version of Haul is out")
+        alerta.informativeText = tr("Haul \(nueva) está en GitHub; tenés la \(versionHaul). La página de descarga tiene el paquete y lo que cambió.",
+                                    "Haul \(nueva) is on GitHub; you have \(versionHaul). The download page has the package and what changed.")
+        alerta.addButton(withTitle: tr("Ir a la descarga", "Go to the download"))
+        alerta.addButton(withTitle: tr("Ahora no", "Not now"))
+        if alerta.runModal() == .alertFirstButtonReturn, let url = URL(string: pagina) { NSWorkspace.shared.open(url) }
+    }
+
+    // Called a little after the start: asks only if the option is on and a day has gone by.
+    @MainActor
+    static func revisarSiToca() async {
+        let d = UserDefaults.standard
+        guard d.object(forKey: "buscarVersiones") as? Bool ?? true else { return }
+        let ultimaVez = d.double(forKey: "ultimaBusqueda")
+        guard Date().timeIntervalSince1970 - ultimaVez > 24 * 3600 else { return }
+        d.set(Date().timeIntervalSince1970, forKey: "ultimaBusqueda")
+        if let nueva = await ultima(), esMasNueva(nueva, que: versionHaul) { avisar(nueva) }
+    }
+}
 
 // MARK: - Localization
 
@@ -1072,7 +1217,7 @@ struct BotonFormato: View {
             HStack(spacing: 12) {
                 Image(systemName: formato.simbolo)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(elegido ? AnyShapeStyle(.white) : AnyShapeStyle(degrade))
+                    .foregroundStyle(elegido ? AnyShapeStyle(sobreAcento) : AnyShapeStyle(degrade))
                     .frame(width: 38, height: 38)
                     .background(elegido ? AnyShapeStyle(degrade) : AnyShapeStyle(.primary.opacity(0.06)),
                                 in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -1108,7 +1253,7 @@ struct BotonGrande: View {
         Button(action: accion) {
             Label(titulo, systemImage: simbolo)
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(sobreAcento)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 13)
                 .background(degrade.opacity(activo ? 1 : 0.4), in: Capsule())
@@ -1158,7 +1303,7 @@ struct TarjetaPregunta: View {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: simbolo)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(sobreAcento)
                     .frame(width: 38, height: 38)
                     .background(degrade, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                 VStack(alignment: .leading, spacing: 6) {
@@ -1305,8 +1450,15 @@ struct Ventana: View {
     @FocusState private var campoEnfocado: Bool
     @StateObject private var cola = Cola()
     @ObservedObject private var ajustes = Ajustes.shared
+    @ObservedObject private var tema = Tema.shared
 
     var body: some View {
+        contenido
+            .id(tema.version)          // a new appearance or colour redraws everything with the new palette
+            .tint(acento)
+    }
+
+    private var contenido: some View {
         ZStack(alignment: .top) {
             // Decorative glow behind the header.
             degrade
@@ -1405,6 +1557,16 @@ struct Ventana: View {
             Text("Haul")
                 .font(.system(size: 28, weight: .bold, design: .rounded))
             Spacer(minLength: 8)
+            Menu {
+                MenuApariencia()
+            } label: {
+                Image(systemName: "paintpalette").font(.system(size: 16))
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(tr("Apariencia y color", "Appearance and colour"))
+            .accessibilityLabel(tr("Apariencia y color", "Appearance and colour"))
             Button { VentanaAcercaDe.mostrar() } label: {
                 Image(systemName: "info.circle").font(.system(size: 17))
             }
@@ -1612,6 +1774,10 @@ let versionHaul = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersion
 // The About window: version, the meaning of the name, author, license and repository.
 struct AcercaDe: View {
     @ObservedObject private var ajustes = Ajustes.shared
+    @ObservedObject private var tema = Tema.shared
+    @AppStorage("buscarVersiones") private var buscarVersiones = true
+    // @State needs a compiler plugin that the Command Line Tools lack; an observed object does the same here.
+    @StateObject private var busqueda = Busqueda()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1631,6 +1797,11 @@ struct AcercaDe: View {
                 + "la carga a casa.",
                 "To haul is to carry something heavy, and a haul is the load you bring back, like a day's catch. That is "
                 + "what the app does: with yt-dlp as its engine, it brings the load home."))
+            Text(tr("Ícono: el águila que trae una liebre del grabado «Águila que le trae una liebre a una joven», del "
+                    + "Monogramista B (Italia, siglo XVII), Rijksmuseum, dominio público.",
+                    "Icon: the eagle carrying a hare from the engraving \"Eagle bringing a young woman a hare\" by the "
+                    + "Monogrammist B (Italy, 17th century), Rijksmuseum, public domain."))
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             seccion(tr("Autor", "Author"), "Gabriel Castiglia · © 2026")
             seccion(tr("Licencia", "License"), tr(
                 "Software libre bajo la Licencia Pública General de GNU, versión 2 (GPL-2.0-only), la misma del núcleo "
@@ -1644,7 +1815,15 @@ struct AcercaDe: View {
                     .padding(.top, 4)
                 Link(String(repositorioWindows.dropFirst("https://".count)), destination: URL(string: repositorioWindows)!)
             }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(tr("Versiones nuevas", "New versions")).font(.headline)
+                Toggle(tr("Avisar cuando haya una versión nueva (se consulta GitHub una vez al día)",
+                          "Tell me when there is a new version (GitHub is asked once a day)"), isOn: $buscarVersiones)
+                if !busqueda.estado.isEmpty { Text(busqueda.estado).font(.caption).foregroundStyle(.secondary) }
+            }
             HStack {
+                Button(tr("Buscar versión nueva", "Check for a new version")) { busqueda.buscar() }
+                    .disabled(busqueda.buscando)
                 Spacer()
                 Button(tr("Cerrar", "Close")) { VentanaAcercaDe.cerrar() }
                     .keyboardShortcut(.defaultAction)
@@ -1654,7 +1833,8 @@ struct AcercaDe: View {
         .padding(28)
         .frame(width: 460)
         .fixedSize(horizontal: false, vertical: true)
-        .id(ajustes.idioma)
+        .tint(acento)
+        .id("\(ajustes.idioma.rawValue)-\(tema.version)")
         .onChange(of: ajustes.idioma) { VentanaAcercaDe.retitular() }
     }
 
@@ -1697,15 +1877,61 @@ struct MenuAcercaDe: View {
     }
 }
 
+// The state of the check for a new version asked from the About window.
+@MainActor
+final class Busqueda: ObservableObject {
+    @Published var estado = ""
+    @Published var buscando = false
+
+    func buscar() {
+        buscando = true
+        estado = tr("Consultando GitHub…", "Asking GitHub…")
+        Task { @MainActor in
+            if let ultima = await Versiones.ultima() {
+                if Versiones.esMasNueva(ultima, que: versionHaul) {
+                    estado = tr("Está la versión \(ultima).", "Version \(ultima) is out.")
+                    Versiones.avisar(ultima)
+                } else {
+                    estado = tr("Tenés la última versión.", "You have the latest version.")
+                }
+            } else {
+                estado = tr("No se pudo consultar GitHub.", "GitHub could not be reached.")
+            }
+            buscando = false
+        }
+    }
+}
+
+// The Appearance menu: in the menu bar and behind the palette button of the window.
+struct MenuApariencia: View {
+    @ObservedObject private var ajustes = Ajustes.shared
+    @ObservedObject private var tema = Tema.shared
+    var body: some View {
+        Picker(tr("Apariencia", "Appearance"), selection: $tema.apariencia) {
+            Text(tr("Como macOS", "As macOS")).tag("auto")
+            Text(tr("Claro", "Light")).tag("light")
+            Text(tr("Oscuro", "Dark")).tag("dark")
+        }
+        .pickerStyle(.inline)
+        Divider()
+        Picker(tr("Color", "Colour"), selection: $tema.color) {
+            ForEach(coloresTema) { c in
+                Text(c.nombre).tag(c.clave)
+            }
+        }
+        .pickerStyle(.inline)
+    }
+}
+
 // MARK: - App
 
 final class Delegado: NSObject, NSApplicationDelegate {
     // The app quits when its only window is closed.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    // Haul is dark only, whatever the system appearance: the light version was rejected (24-Oct-2026).
+    // Light, dark or as macOS, and the colour of the Dock icon, from the Appearance menu.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        Tema.shared.aplicar()
     }
 
     // With a hidden title bar SwiftUI ignores .defaultSize, so the initial size is set through
@@ -1719,6 +1945,10 @@ final class Delegado: NSObject, NSApplicationDelegate {
                 w.center()
             }
             w.setFrameAutosaveName("Haul")
+        }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 20_000_000_000)
+            await Versiones.revisarSiToca()
         }
     }
 }
@@ -1734,6 +1964,7 @@ struct HaulApp: App {
             .windowResizability(.contentMinSize)
             .commands {
                 CommandGroup(replacing: .appInfo) { MenuAcercaDe() }
+                CommandMenu(tr("Apariencia", "Appearance")) { MenuApariencia() }
                 CommandMenu(tr("Idioma", "Language")) {
                     Picker(tr("Idioma", "Language"), selection: $ajustes.idioma) {
                         ForEach(Idioma.allCases) { Text($0.nombre).tag($0) }

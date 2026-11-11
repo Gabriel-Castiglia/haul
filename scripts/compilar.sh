@@ -16,8 +16,8 @@ RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 source scripts/firma.sh
 
-VERSION="1.4.1"
-COMPILACION="7"
+VERSION="1.5.0"
+COMPILACION="8"
 APP="build/Haul.app"
 
 rm -rf "$APP"
@@ -49,6 +49,10 @@ cp vendor/yt-dlp/licenses/* "$APP/Contents/Resources/licenses/"
 cp LICENSE "$APP/Contents/Resources/licenses/Haul-LICENSE"
 
 # 3b. Haul's yt-dlp extractor plugin, without Python bytecode
+# The icon in each accent colour, for the Dock (scripts/make_icon.py draws them).
+mkdir -p "$APP/Contents/Resources/accents"
+cp icono/accents/*.png "$APP/Contents/Resources/accents/"
+
 mkdir -p "$APP/Contents/Resources/plugins"
 rsync -a --exclude '__pycache__' plugins/ "$APP/Contents/Resources/plugins/"
 

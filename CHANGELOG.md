@@ -2,6 +2,24 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.5.0 - 2026-11-11
+
+### Added
+
+- Light, dark or as macOS, from the new Appearance menu, also behind the palette button of the window. A Haul
+  that already ran keeps the dark window it had; a new installation follows macOS.
+- Twelve colours for the buttons, check boxes, selected items and the icon in the Dock. Before, the window took
+  the accent colour of macOS.
+- Notice of new versions: once a day Haul asks GitHub for the latest version number and, if it is newer,
+  offers to open the download page. About Haul turns it off and asks on request.
+- Pictures of the window in the README.
+
+### Changed
+
+- A new icon: the eagle carrying a hare from an engraving by the Monogrammist B (Italy, 17th century;
+  Rijksmuseum, public domain), drawn by `scripts/make_icon.py` in the twelve colours, orange by default.
+- The README and the manuals say Apple silicon (arm64) only and link to the latest release.
+
 ## 1.4.1 - 2026-11-09
 
 ### Added

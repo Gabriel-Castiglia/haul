@@ -1,12 +1,17 @@
-# Haul
+<p align="center"><img src="icono/icono-1024.png" width="140" alt="Haul"></p>
 
-Gabriel Castiglia · November 9, 2026 · version 1.4.1 · GPL-2.0 license · built and tested with yt-dlp 2026.08.19
+<h1 align="center">Haul</h1>
+<p align="center"><b>Videos and music from the web to your folder, with yt-dlp doing the work.</b></p>
+
+<p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
+
+Gabriel Castiglia · November 11, 2026 · version 1.5.0 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
-Repository: <https://github.com/Gabriel-Castiglia/haul>
-
 Windows version: <https://github.com/Gabriel-Castiglia/haul-windows>
+
+> **macOS 15 or later on Apple silicon (arm64) only.** There is no build for Macs with an Intel processor.
 
 PDF manual: [`docs/Haul-manual-en.pdf`](docs/Haul-manual-en.pdf)
 
@@ -14,8 +19,8 @@ Haul is a macOS app that works as a front end for
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). The app builds the command, shows the
 progress and manages a download queue. The actual work is done by yt-dlp, bundled with the app at
 a fixed, verified version, and by ffmpeg, installed with Homebrew. The interface is available in English and Spanish, selectable from the Language
-menu; it starts in English on first launch and remembers the choice. The window is always dark,
-whatever the system appearance.
+menu; it starts in English on first launch and remembers the choice. The window can be light, dark or
+follow macOS, in one of twelve colours.
 
 ## Requirements
 
@@ -31,7 +36,7 @@ installed by hand.
 ### With the installer package
 
 Download `Haul-<version>.pkg` from the
-[releases page](https://github.com/Gabriel-Castiglia/haul/releases) and open it. The installer is in
+[latest release](https://github.com/Gabriel-Castiglia/haul/releases/latest) and open it. The installer is in
 English or Spanish, following the language of the Mac. It checks that Homebrew is installed and stops
 with a message if it is not; then it installs `Haul.app` in `/Applications`, quitting a running copy
 first, and installs Python, deno and ffmpeg with Homebrew or upgrades them if they are already there.
@@ -44,7 +49,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.4.1.pkg
+shasum -a 256 Haul-1.5.0.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
@@ -148,8 +153,11 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | Path | Contents |
 |---|---|
 | `fuentes/Haul.swift` | App source code (SwiftUI, a single file) |
-| `icono/icono.html` | Icon as SVG |
-| `icono/icono-1024.png` | Rendered icon, source for every size |
+| `assets/` | The engraving the icon comes from |
+| `scripts/make_icon.py` | Draws the icon in its twelve colours (Python 3 with numpy, opencv-python, scipy and Pillow); the same script makes the icon of the Windows version |
+| `icono/icono-1024.png` | The app icon, on its default orange, source for every size |
+| `icono/accents/` | The icon on each colour, for the Dock |
+| `docs/images/` | Pictures of the window |
 | `scripts/instalar.sh` | Dependencies, build and installation |
 | `scripts/compilar.sh` | Build and signing into `build/` |
 | `scripts/paquete.sh` | Builds the installer package `build/Haul-<version>.pkg` |
@@ -186,21 +194,28 @@ Automatic pasting of links when the app opens works only if clipboard access is 
 Allow" (System Settings, Privacy & Security, Paste from Other Apps). Without that permission the
 app reads the clipboard only when Paste is pressed, and shows no prompt when it opens.
 
-## Icon
+## Appearance and icon
 
-The interface takes the system accent color and follows it when it changes. The icon, on the
-other hand, is fixed (graphite with the current accent green), because an icon that adapts to the
-system theme requires the Icon Composer format and Xcode. To change its colors, edit the
-`stop-color` values in `icono/icono.html`, render the PNG again and reinstall:
+The Appearance menu, also behind the palette button of the window, chooses light, dark or as macOS, and
+one of twelve colours. The colour chosen is used for the buttons, check boxes and selected items, and for
+the icon in the Dock while Haul is open: the eagle flies on a tile of that colour. The icon in the
+Finder and in Launchpad stays orange, because changing it would break the app's signature. A Haul that
+already ran keeps the dark window it had; a new installation follows macOS.
 
-```
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars \
-  --force-device-scale-factor=2 --window-size=512,512 --default-background-color=00000000 \
-  --screenshot="$PWD/icono/icono-1024.png" "file://$PWD/icono/icono.html"
-scripts/instalar.sh
-```
+![The Haul window, light](docs/images/main-en.png)
 
-If the Dock keeps showing the old icon, remove the app from the Dock and add it again.
+The icon is the eagle carrying a hare from the engraving "Eagle bringing a young woman a hare" by the
+Monogrammist B (Italy, 17th century), Rijksmuseum, public domain (CC0). `scripts/make_icon.py` cuts it
+out of the scan in `assets/` and draws it on each colour; it needs Python with numpy, opencv-python,
+scipy and Pillow. After drawing it again, `scripts/instalar.sh` reinstalls the app. If the Dock keeps
+showing the old icon, remove the app from the Dock and add it again.
+
+## New versions
+
+Once a day Haul asks GitHub for the number of the latest version. If it is newer, a message says so and
+offers to open the download page; Haul never downloads or installs a new version by itself. The request
+carries nothing but the program name and its version. About Haul turns it off ("Tell me when there is a
+new version") and asks at any time ("Check for a new version").
 
 ## Maintenance
 

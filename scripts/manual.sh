@@ -40,7 +40,11 @@ HTML
 
 # Relative links in the README (LICENSE, docs/…) point to the repository in the PDF; otherwise
 # they would become file:// paths inside the temporary folder of whoever builds it.
+# The centered header of the README (icon, name, phrase, picture) is for GitHub; the cover has the icon and the name.
 cat > "$TEMPORAL/enlaces.lua" <<LUA
+function RawBlock(el)
+  if el.format == "html" and el.text:match('align="center"') then return {} end
+end
 function Link(el)
   if not el.target:match("^%a[%w+.-]*:") and not el.target:match("^#") then
     el.target = "$REPO/blob/main/" .. el.target
