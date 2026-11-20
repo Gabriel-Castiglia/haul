@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 11, 2026 · version 1.5.1 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · November 20, 2026 · version 1.6.0 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
 
 English · [Español](README.es.md)
 
@@ -49,7 +49,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.5.1.pkg
+shasum -a 256 Haul-1.6.0.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
@@ -213,14 +213,35 @@ showing the old icon, quit Haul and empty the Dock's icon cache:
 
 ## New versions
 
-Once a day Haul asks GitHub for the number of the latest version. If it is newer, a message says so and
-offers to open the download page; Haul never downloads or installs a new version by itself. The request
-carries nothing but the program name and its version. About Haul turns it off ("Tell me when there is a
-new version") and asks at any time ("Check for a new version").
+Once a day Haul asks GitHub for its latest release, and so does "Check for updates" in About Haul. If it is
+newer, one question: Update now, What's new or Later. Update now downloads the package, checks it against the
+release's `SHA256SUMS.txt` (a file that does not match is deleted and never opened) and the app inside it for the
+same identifier, version and signature, asks what to do with a running download (update now or when the queue
+ends), saves the queue, quits, puts the new app in place of the old one and opens it. A copy that is not
+`/Applications/Haul.app` is offered the download page; one installed by another user opens the checked package
+in Installer. The request carries nothing but the program name and its version. About Haul turns the daily
+check off.
+
+## The queue between sessions
+
+The queue survives quitting Haul: queued, paused and failed rows and the links still waiting come back in the
+same order; a download that was running comes back queued and resumes from its partial files. Quitting stops
+yt-dlp, so nothing goes on downloading without Haul. The queue is kept in
+`~/Library/Application Support/Haul/queue.json`, written through a temporary file; a damaged file is set aside as
+`queue.damaged.json` and Haul starts with an empty queue.
+
+## yt-dlp updates
+
+Once a day (About Haul turns it off) and with "Update yt-dlp", Haul fetches yt-dlp's latest official release into
+`~/Library/Application Support/Haul/yt-dlp/<version>`, checks it against its `SHA2-256SUMS` and its own version
+number, and uses it for the next downloads; a running download keeps the copy it started with. The copy inside
+the app stays as it was and is used again whenever no newer checked copy exists; older copies are removed when
+Haul starts.
 
 ## Maintenance
 
-Haul is built and tested with yt-dlp 2026.08.19, and that exact copy ships inside the app.
+Haul is built and tested with yt-dlp 2026.08.19, and that exact copy ships inside the app (newer copies
+can come from the app itself, see above).
 A pinned version keeps the behavior stable and does not depend on the yt-dlp repository staying
 online. The trade-off is that sites change often, and sooner or later a fixed version stops working with them. When that happens, a new release of Haul moves to a newer yt-dlp:
 

@@ -15,6 +15,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 import UniformTypeIdentifiers
 
 // Homebrew location on Apple Silicon Macs. Apps launched from the Finder do not inherit the
@@ -23,12 +24,14 @@ import UniformTypeIdentifiers
 let carpetaHomebrew = "/opt/homebrew/bin"
 let rutaPython = carpetaHomebrew + "/python3"
 
-// yt-dlp ships inside the app (Contents/Resources), pinned to the version it was tested with.
-let rutaYtDlp = Bundle.main.path(forResource: "yt-dlp", ofType: nil) ?? ""
+// yt-dlp ships inside the app (Contents/Resources), pinned to the version it was tested with. A newer copy that Haul
+// downloaded and checked takes its place for the next downloads (MotorYtDlp, in Continuidad.swift).
+nonisolated(unsafe) var rutaYtDlp = Bundle.main.path(forResource: "yt-dlp", ofType: nil) ?? ""
 // Haul's yt-dlp extractor plugin (plugins/haul in the repository), for links the pinned version
 // does not handle on its own.
 let rutaComplementos = Bundle.main.path(forResource: "plugins", ofType: nil) ?? ""
-let versionYtDlp = Bundle.main.object(forInfoDictionaryKey: "YtDlpVersion") as? String ?? "?"
+let versionYtDlpIncluida = Bundle.main.object(forInfoDictionaryKey: "YtDlpVersion") as? String ?? "?"
+nonisolated(unsafe) var versionYtDlp = versionYtDlpIncluida
 
 // The palette comes from the colour chosen in the Appearance menu (Tema, below): a deeper tone on a light
 // window, a brighter one on a dark window.
@@ -122,62 +125,6 @@ final class Tema: ObservableObject {
         }
         if let img = icono(color) { NSApp.applicationIconImage = img }
         version += 1
-    }
-}
-
-// MARK: - New versions
-
-// Once a day Haul asks GitHub for the number of the latest version and, if it is newer, offers the download
-// page. Nothing is sent but the request itself, and nothing is downloaded or installed.
-enum Versiones {
-    static let api = "https://api.github.com/repos/Gabriel-Castiglia/haul/releases/latest"
-    static let pagina = "https://github.com/Gabriel-Castiglia/haul/releases/latest"
-
-    static func numeros(_ s: String) -> [Int] {
-        s.trimmingCharacters(in: CharacterSet(charactersIn: "vV")).split(separator: ".").map { Int($0) ?? 0 }
-    }
-
-    static func esMasNueva(_ a: String, que b: String) -> Bool {
-        let x = numeros(a), y = numeros(b)
-        for i in 0..<max(x.count, y.count) {
-            let p = i < x.count ? x[i] : 0, q = i < y.count ? y[i] : 0
-            if p != q { return p > q }
-        }
-        return false
-    }
-
-    // The latest published version; nil if GitHub did not answer.
-    static func ultima() async -> String? {
-        guard let url = URL(string: api) else { return nil }
-        var pedido = URLRequest(url: url, timeoutInterval: 15)
-        pedido.setValue("Haul/\(versionHaul)", forHTTPHeaderField: "User-Agent")
-        pedido.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        guard let (datos, _) = try? await URLSession.shared.data(for: pedido),
-              let json = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
-              let tag = json["tag_name"] as? String else { return nil }
-        return tag.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-    }
-
-    @MainActor
-    static func avisar(_ nueva: String) {
-        let alerta = NSAlert()
-        alerta.messageText = tr("Hay una versión nueva de Haul", "A new version of Haul is out")
-        alerta.informativeText = tr("Haul \(nueva) está en GitHub; tenés la \(versionHaul). La página de descarga tiene el paquete y lo que cambió.",
-                                    "Haul \(nueva) is on GitHub; you have \(versionHaul). The download page has the package and what changed.")
-        alerta.addButton(withTitle: tr("Ir a la descarga", "Go to the download"))
-        alerta.addButton(withTitle: tr("Ahora no", "Not now"))
-        if alerta.runModal() == .alertFirstButtonReturn, let url = URL(string: pagina) { NSWorkspace.shared.open(url) }
-    }
-
-    // Called a little after the start: asks only if the option is on and a day has gone by.
-    @MainActor
-    static func revisarSiToca() async {
-        let d = UserDefaults.standard
-        guard d.object(forKey: "buscarVersiones") as? Bool ?? true else { return }
-        let ultimaVez = d.double(forKey: "ultimaBusqueda")
-        guard Date().timeIntervalSince1970 - ultimaVez > 24 * 3600 else { return }
-        d.set(Date().timeIntervalSince1970, forKey: "ultimaBusqueda")
-        if let nueva = await ultima(), esMasNueva(nueva, que: versionHaul) { avisar(nueva) }
     }
 }
 
@@ -433,8 +380,8 @@ final class Elemento: ObservableObject, Identifiable {
 
     // Base name of this download's files (without extension) and the files with that base that
     // already existed when it started, so a cancelled download removes only what it created.
-    private var baseArchivo: URL?
-    private var previos = Set<String>()
+    var baseArchivo: URL?
+    var previos = Set<String>()
 
     // Notifies the queue of every stage change so the summary and controls stay current.
     @Published var etapa: Etapa = .enCola { didSet { cola?.objectWillChange.send() } }
@@ -678,6 +625,120 @@ final class Cola: ObservableObject {
         limpiarSola = UserDefaults.standard.bool(forKey: "limpiarSola")
         instrumentales = UserDefaults.standard.bool(forKey: "instrumentales")
         listaEntera = UserDefaults.standard.object(forKey: "listaEntera") as? Bool ?? true
+        guard !PruebaPropia.activa else { return }
+        Cola.principal = self
+        MotorYtDlp.iniciar()
+        restaurar()
+        // Saved a second after the last change, so a burst of changes is written once.
+        guardado = objectWillChange.debounce(for: .seconds(1), scheduler: RunLoop.main).sink { [weak self] in
+            self?.guardar()
+        }
+    }
+
+    // MARK: Between sessions
+
+    static weak var principal: Cola?
+    private var guardado: AnyCancellable?
+    // Off once the queue was read with trouble (it is not written over) and after the last save at quit.
+    private var guardar_ = true
+
+    // The rows that come back: queued, paused and failed ones; one that was running comes back queued.
+    func estado() -> EstadoCola {
+        var e = EstadoCola()
+        e.enPausa = enPausa
+        for f in elementos {
+            var etapa: String
+            var fallo: String?
+            switch f.etapa {
+            case .lista, .cancelada: continue
+            case .detenida: etapa = "detenida"
+            case .pausada: etapa = "pausada"
+            case .fallo(let m): etapa = "fallo"; fallo = m
+            default: etapa = "enCola"
+            }
+            e.filas.append(FilaGuardada(
+                enlace: f.enlace, formato: f.formato.rawValue, destino: f.destino.path, prefijo: f.prefijo,
+                nombreLista: f.nombreLista, posicion: f.posicion, esLectura: f.esLectura, etapa: etapa, fallo: fallo,
+                titulo: f.info?.titulo, autor: f.info?.autor, duracion: f.info?.duracion, miniatura: f.info?.miniatura?.absoluteString,
+                instrumental: f.instrumental, forzar: f.forzar, baseArchivo: f.baseArchivo?.path, previos: f.previos.isEmpty ? nil : Array(f.previos)))
+        }
+        e.enlaces = (preguntaLista.map { [$0] } ?? []) + pendientes
+        return e
+    }
+
+    func guardar() {
+        guard guardar_ else { return }
+        try? ColaGuardada.guardar(estado())
+    }
+
+    private func restaurar() {
+        var danado = false
+        guard let e = ColaGuardada.cargar(danado: &danado) else { guardar_ = false; return }   // unreadable for now: left alone
+        enPausa = e.enPausa
+        var lecturasPendientes: [Elemento] = []
+        for g in e.filas {
+            let f = Elemento(enlace: g.enlace, formato: Formato(rawValue: g.formato) ?? .video, destino: URL(fileURLWithPath: g.destino))
+            f.prefijo = g.prefijo
+            f.nombreLista = g.nombreLista
+            f.posicion = g.posicion
+            f.esLectura = g.esLectura
+            f.instrumental = g.instrumental
+            f.forzar = g.forzar
+            if let t = g.titulo {
+                f.info = InfoVideo(titulo: t, autor: g.autor ?? "", duracion: g.duracion ?? "", miniatura: g.miniatura.flatMap(URL.init(string:)))
+            }
+            f.baseArchivo = g.baseArchivo.map { URL(fileURLWithPath: $0) }
+            f.previos = Set(g.previos ?? [])
+            switch g.etapa {
+            case "detenida": f.etapa = .detenida
+            case "pausada": f.etapa = .pausada
+            case "fallo": f.etapa = .fallo(g.fallo ?? "")
+            default: f.etapa = .enCola
+            }
+            f.cola = self
+            elementos.append(f)
+            if f.esLectura && f.etapa == .enCola { lecturasPendientes.append(f) }
+        }
+        pendientes += e.enlaces
+        if danado { DispatchQueue.main.async { self.avisarDanada() } }
+        for f in lecturasPendientes { leer(f, yaEnLaCola: true) }
+        procesarPendientes()
+    }
+
+    private func avisarDanada() {
+        let a = NSAlert()
+        a.messageText = tr("La cola guardada estaba dañada", "The saved queue was damaged")
+        a.informativeText = tr("Haul empieza con la cola vacía. El archivo quedó aparte como queue.damaged.json, en ~/Library/Application Support/Haul.",
+                               "Haul starts with an empty queue. The file was set aside as queue.damaged.json, in ~/Library/Application Support/Haul.")
+        a.runModal()
+    }
+
+    // At quit: the queue is saved as it is (a running download comes back queued and resumes from its partial
+    // files) and yt-dlp is stopped, so no download goes on without Haul.
+    func cerrarParaSalir() {
+        guardar()
+        guardar_ = false
+        for (_, p) in lecturas { p.terminate() }
+        terminarArbol(proceso)
+    }
+
+    // Before quitting for an update: a running download either stops now (and resumes after) or is waited for.
+    func listaParaActualizar() async -> Bool {
+        guard ocupada || hayPendientes else { return true }
+        let a = NSAlert()
+        a.messageText = tr("Hay una descarga en curso", "A download is running")
+        a.informativeText = tr("Haul se cerrará para instalar la versión nueva. La cola se guarda, y lo que se estaba bajando sigue desde donde quedó al volver a abrirse.",
+                               "Haul will close to install the new version. The queue is saved, and what was being downloaded goes on from where it was when Haul opens again.")
+        a.addButton(withTitle: tr("Actualizar ahora", "Update now"))
+        a.addButton(withTitle: tr("Cuando termine la cola", "When the queue ends"))
+        a.addButton(withTitle: tr("Cancelar", "Cancel"))
+        switch a.runModal() {
+        case .alertFirstButtonReturn: return true
+        case .alertSecondButtonReturn:
+            while ocupada || hayPendientes { try? await Task.sleep(nanoseconds: 1_000_000_000) }
+            return true
+        default: return false
+        }
     }
 
     var ytDlpInstalado: Bool {
@@ -1493,8 +1554,11 @@ struct Ventana: View {
                 VStack(alignment: .leading, spacing: 18) {
                     preguntas.id("pregunta")
                     if !cola.elementos.isEmpty { listaDeLaCola }
-                    Text(tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), incluido en la app",
-                            "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app"))
+                    Text(versionYtDlp == versionYtDlpIncluida
+                         ? tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), incluido en la app",
+                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app")
+                         : tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), actualizado por Haul",
+                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), updated by Haul"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -1776,6 +1840,7 @@ struct AcercaDe: View {
     @ObservedObject private var ajustes = Ajustes.shared
     @ObservedObject private var tema = Tema.shared
     @AppStorage("buscarVersiones") private var buscarVersiones = true
+    @AppStorage("actualizarYtDlp") private var actualizarYtDlp = true
     // @State needs a compiler plugin that the Command Line Tools lack; an observed object does the same here.
     @StateObject private var busqueda = Busqueda()
 
@@ -1817,13 +1882,18 @@ struct AcercaDe: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("Versiones nuevas", "New versions")).font(.headline)
-                Toggle(tr("Avisar cuando haya una versión nueva (se consulta GitHub una vez al día)",
-                          "Tell me when there is a new version (GitHub is asked once a day)"), isOn: $buscarVersiones)
-                if !busqueda.estado.isEmpty { Text(busqueda.estado).font(.caption).foregroundStyle(.secondary) }
+                Toggle(tr("Buscar versiones nuevas de Haul una vez al día (se instalan solas si lo pedís)",
+                          "Look for new versions of Haul once a day (they install themselves when you ask)"), isOn: $buscarVersiones)
+                Toggle(tr("Actualizar yt-dlp solo (desde sus versiones oficiales en GitHub, una vez al día)",
+                          "Update yt-dlp by itself (from its official releases on GitHub, once a day)"), isOn: $actualizarYtDlp)
+                HStack(spacing: 10) {
+                    Button(tr("Actualizar yt-dlp", "Update yt-dlp")) { busqueda.actualizarYtDlp() }
+                        .disabled(busqueda.buscando)
+                    if !busqueda.estado.isEmpty { Text(busqueda.estado).font(.caption).foregroundStyle(.secondary) }
+                }
             }
             HStack {
-                Button(tr("Buscar versión nueva", "Check for a new version")) { busqueda.buscar() }
-                    .disabled(busqueda.buscando)
+                Button(tr("Buscar actualizaciones", "Check for updates")) { SelfUpdate.shared.check(interactive: true) }
                 Spacer()
                 Button(tr("Cerrar", "Close")) { VentanaAcercaDe.cerrar() }
                     .keyboardShortcut(.defaultAction)
@@ -1877,25 +1947,22 @@ struct MenuAcercaDe: View {
     }
 }
 
-// The state of the check for a new version asked from the About window.
+// "Update yt-dlp" in the About window, and what it says.
 @MainActor
 final class Busqueda: ObservableObject {
     @Published var estado = ""
     @Published var buscando = false
 
-    func buscar() {
+    func actualizarYtDlp() {
         buscando = true
         estado = tr("Consultando GitHub…", "Asking GitHub…")
         Task { @MainActor in
-            if let ultima = await Versiones.ultima() {
-                if Versiones.esMasNueva(ultima, que: versionHaul) {
-                    estado = tr("Está la versión \(ultima).", "Version \(ultima) is out.")
-                    Versiones.avisar(ultima)
-                } else {
-                    estado = tr("Tenés la última versión.", "You have the latest version.")
-                }
-            } else {
-                estado = tr("No se pudo consultar GitHub.", "GitHub could not be reached.")
+            do {
+                let r = try await MotorYtDlp.actualizar()
+                estado = r.nueva ? tr("yt-dlp \(r.version) instalado: lo usan las próximas descargas.", "yt-dlp \(r.version) installed: the next downloads use it.")
+                                 : tr("yt-dlp \(r.version) es la última versión.", "yt-dlp \(r.version) is the latest version.")
+            } catch {
+                estado = error.localizedDescription
             }
             buscando = false
         }
@@ -1949,10 +2016,24 @@ final class Delegado: NSObject, NSApplicationDelegate {
         // The Dock tile only exists now: an icon set in applicationWillFinishLaunching never reaches it (measured on
         // macOS 27: the Dock kept the icon of the bundle), so the colour of the icon is applied again here.
         DispatchQueue.main.async { Tema.shared.aplicar() }
+        let up = SelfUpdate.shared
+        up.appName = "Haul"
+        up.repo = "Gabriel-Castiglia/haul"
+        up.version = versionHaul
+        up.language = { Ajustes.shared.idioma == .es ? "es" : "en" }
+        up.dailyCheckOn = { UserDefaults.standard.object(forKey: "buscarVersiones") as? Bool ?? true }
+        up.readyToQuit = { await Cola.principal?.listaParaActualizar() ?? true }
+        up.cleanUpAtStart()
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 20_000_000_000)
-            await Versiones.revisarSiToca()
+            up.checkDaily()
+            await MotorYtDlp.revisarSiToca()
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated { Cola.principal?.cerrarParaSalir() }
+        SelfUpdate.shared.finishIfStaged()
     }
 }
 
@@ -1960,6 +2041,10 @@ final class Delegado: NSObject, NSApplicationDelegate {
 struct HaulApp: App {
     @NSApplicationDelegateAdaptor(Delegado.self) var delegado
     @StateObject private var ajustes = Ajustes.shared
+
+    init() {
+        if PruebaPropia.activa { exit(MainActor.assumeIsolated { PruebaPropia.correr() }) }
+    }
 
     var body: some Scene {
         Window("Haul", id: "principal") { Ventana() }

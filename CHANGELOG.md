@@ -2,6 +2,39 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.6.0 - 2026-11-20
+
+What Haul 1.7.0 for Windows brought, on the Mac.
+
+### Added
+
+- Updates that install themselves. Once a day, or with "Check for updates" in About Haul, Haul asks GitHub for
+  its latest release and, if it is newer, asks once: "Update now", "What's new" or "Later". "Update now" downloads
+  the package, checks it against the release's `SHA256SUMS.txt` (a file that does not match is deleted and never
+  opened) and the app inside it for the same identifier, version and signature, asks what to do with a running
+  download (update now or when the queue ends), saves the queue, quits, puts the new app in place and opens it.
+- yt-dlp updates from the app. Once a day (it can be turned off in About Haul) and with "Update yt-dlp", Haul
+  fetches yt-dlp's latest official release into `~/Library/Application Support/Haul/yt-dlp/<version>`, checks it
+  against `SHA2-256SUMS` and its own version number, and uses it for the next downloads; a running download keeps
+  the copy it started with. The copy inside the app stays as it was.
+- The queue survives quitting Haul: queued, paused and failed rows and the links still waiting come back in the
+  same order; a download that was running comes back queued and resumes from its partial files. It is saved in
+  `~/Library/Application Support/Haul/queue.json` through a temporary file; a damaged file is set aside as
+  `queue.damaged.json`.
+- `Haul --self-test` checks the saved queue, the version logic of Haul and yt-dlp and the checksum lists with
+  throw-away data, before any window exists and without touching the user's settings or queue; the exit code is
+  the number of failures. `--red` adds a real yt-dlp update into the temporary folder.
+
+### Fixed
+
+- Quitting Haul while a download was running left yt-dlp downloading on its own. It is now stopped at quit,
+  and the download comes back queued.
+
+### Not brought over
+
+- The compact window of the Windows version, made for 1366 × 768 screens at 125 % or 150 %: the smallest Mac
+  screen holds the window as it is.
+
 ## 1.5.1 - 2026-11-11
 
 ### Fixed

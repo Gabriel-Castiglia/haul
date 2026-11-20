@@ -16,7 +16,7 @@ RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 source scripts/firma.sh
 
-VERSION="1.5.1"
+VERSION="1.6.0"
 COMPILACION="9"
 APP="build/Haul.app"
 
@@ -25,7 +25,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 # 1. Binary
 swiftc -O -swift-version 5 -parse-as-library \
-    -o "$APP/Contents/MacOS/Haul" fuentes/Haul.swift
+    -o "$APP/Contents/MacOS/Haul" fuentes/*.swift
 
 # 2. Icon: every size macOS expects, generated from the 1024 px PNG
 SET="$(mktemp -d)/Haul.iconset"

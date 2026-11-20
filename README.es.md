@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 11 de noviembre de 2026 · versión 1.5.1 · GPL-2.0-only · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 20 de noviembre de 2026 · versión 1.6.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.08.19
 
 [English](README.md) · Español
 
@@ -50,7 +50,7 @@ aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La a
 avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
 
 ```
-shasum -a 256 Haul-1.5.1.pkg
+shasum -a 256 Haul-1.6.0.pkg
 ```
 
 Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
@@ -219,15 +219,35 @@ Pillow. Después de volver a dibujarlo, `scripts/instalar.sh` reinstala la app. 
 
 ## Versiones nuevas
 
-Una vez por día, Haul le pregunta a GitHub el número de la última versión. Si es más nueva, un mensaje lo
-avisa y ofrece abrir la página de descarga; Haul nunca baja ni instala una versión nueva por su cuenta.
-La consulta no lleva más que el nombre del programa y su versión. Acerca de Haul la apaga («Avisar
-cuando haya una versión nueva») y pregunta cuando se quiera («Buscar versión nueva»).
+Una vez por día Haul le pregunta a GitHub por su última versión, y lo mismo hace «Buscar actualizaciones» en
+Acerca de Haul. Si es más nueva, una sola pregunta: Actualizar ahora, Ver novedades o Más tarde. Actualizar ahora
+descarga el paquete, lo compara con el `SHA256SUMS.txt` de la versión (si no coincide se borra sin abrirlo) y
+comprueba que la app que trae tenga el mismo identificador, la versión anunciada y la misma firma; pregunta qué
+hacer con una descarga en curso (actualizar ahora o cuando termine la cola), guarda la cola, se cierra, pone la
+app nueva en lugar de la vieja y la abre. Una copia que no es `/Applications/Haul.app` recibe la página de
+descarga; una instalada por otro usuario abre el paquete ya comprobado en el Instalador. La consulta no lleva más
+que el nombre del programa y su versión. Acerca de Haul apaga la búsqueda diaria.
+
+## La cola entre sesiones
+
+La cola sobrevive al cierre de Haul: las filas en cola, en pausa y con error y los enlaces que esperaban vuelven
+en el mismo orden; una descarga que estaba en curso vuelve a la cola y sigue desde sus archivos parciales. Al
+salir, Haul detiene yt-dlp, así que nada se sigue bajando sin Haul. La cola se guarda en
+`~/Library/Application Support/Haul/queue.json`, a través de un archivo temporal; un archivo dañado queda aparte
+como `queue.damaged.json` y Haul empieza con la cola vacía.
+
+## Actualizaciones de yt-dlp
+
+Una vez por día (Acerca de Haul lo apaga) y con «Actualizar yt-dlp», Haul trae la última versión oficial de
+yt-dlp a `~/Library/Application Support/Haul/yt-dlp/<versión>`, la compara con su `SHA2-256SUMS` y con su propio
+número de versión, y la usa en las descargas siguientes; una descarga en curso sigue con la copia con que
+empezó. La copia de dentro de la app queda como estaba y vuelve a usarse cuando no hay una más nueva
+comprobada; las copias viejas se borran al abrir Haul.
 
 ## Mantenimiento
 
 Haul está hecho y probado con yt-dlp 2026.08.19, y esa copia exacta viaja dentro de la
-aplicación. Una versión fija mantiene estable el comportamiento y no depende de que el repositorio
+aplicación (las copias más nuevas pueden venir de la propia app, ver arriba). Una versión fija mantiene estable el comportamiento y no depende de que el repositorio
 de yt-dlp siga en línea. La contra es que los sitios cambian seguido y, tarde o temprano, una versión
 fija deja de funcionar con ellos. Cuando eso pase, una versión nueva de Haul pasa a un yt-dlp
 más reciente:
