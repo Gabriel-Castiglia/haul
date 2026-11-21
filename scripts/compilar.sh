@@ -14,6 +14,14 @@
 set -euo pipefail
 RAIZ="${0:A:h:h}"
 cd "$RAIZ"
+
+# Spotlight must not list the copies built here (21-nov-2026: Citadel and Vigía showed twice, and old Gryphmark
+# copies from expanded packages): build is a link to build.noindex, a folder Spotlight leaves out.
+if [[ ! -L build ]]; then
+    mkdir -p build.noindex
+    if [[ -d build ]]; then rsync -a build/ build.noindex/ && rm -rf build; fi
+    ln -s build.noindex build
+fi
 source scripts/firma.sh
 
 VERSION="1.6.0"
