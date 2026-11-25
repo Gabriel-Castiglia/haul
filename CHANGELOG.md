@@ -2,6 +2,18 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.6.1 - 2026-11-25
+
+### Changed
+
+- Bundles **yt-dlp 2026.11.23** (it was 2026.08.19), unmodified, with its signature and checksums verified against
+  the key of yt-dlp's releases (`AC0C BBE6 848D 6A87 3464 AF4E 57CF 6593 3B5A 7581`). Sites change often and an old
+  yt-dlp stops working with them; checked with a real download from YouTube and Vimeo's player.
+- The release carries `release.sig`, the author's signature of its `SHA256SUMS.txt`, like the Windows apps. Haul for
+  Mac already accepts an update only when the downloaded app is signed as the installed one.
+- Building the manuals stops when the version of Haul or of yt-dlp written under the title of a README is not the
+  real one.
+
 ## 1.6.0 - 2026-11-20
 
 What Haul 1.7.0 for Windows brought, on the Mac.

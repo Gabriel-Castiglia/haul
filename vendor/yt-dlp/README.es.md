@@ -1,9 +1,9 @@
-# yt-dlp 2026.08.19, copia incluida
+# yt-dlp 2026.11.23, copia incluida
 
 [English](README.md) · Español
 
 Esta carpeta contiene una copia sin modificar de [yt-dlp](https://github.com/yt-dlp/yt-dlp),
-versión 2026.08.19. Haul está hecho y probado con esa versión exacta y la ejecuta desde
+versión 2026.11.23. Haul está hecho y probado con esa versión exacta y la ejecuta desde
 dentro de la aplicación. Así su comportamiento no cambia cuando yt-dlp publica una versión nueva, y
 el proyecto sigue funcionando aunque el repositorio original deje de estar disponible.
 
@@ -18,8 +18,8 @@ el proyecto sigue funcionando aunque el repositorio original deje de estar dispo
 
 ## Procedencia
 
-Los archivos se descargaron el 19 de octubre de 2026 de la
-[versión 2026.08.19](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.08.19). Las sumas SHA-256 de
+Los archivos se descargaron el 25 de noviembre de 2026 de la
+[versión 2026.11.23](https://github.com/yt-dlp/yt-dlp/releases/tag/2026.11.23). Las sumas SHA-256 de
 `yt-dlp` y `yt-dlp.tar.gz` coinciden con `SHA2-256SUMS`, y la firma de ese archivo se verificó con
 la clave de firma de yt-dlp `AC0C BBE6 848D 6A87 3464 AF4E 57CF 6593 3B5A 7581` (Simon Sawicki).
 `scripts/compilar.sh` vuelve a comprobar la suma de `yt-dlp` en cada compilación.

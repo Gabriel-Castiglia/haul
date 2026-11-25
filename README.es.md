@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 20 de noviembre de 2026 · versión 1.6.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.08.19
+Gabriel Castiglia · 25 de noviembre de 2026 · versión 1.6.1 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
 
 [English](README.md) · Español
 
@@ -170,7 +170,7 @@ sus episodios.
 | `scripts/manual.sh` | Genera los manuales en PDF a partir de los README |
 | `scripts/actualizar-yt-dlp.sh` | Reemplaza el yt-dlp incluido por otra versión verificada |
 | `plugins/haul/` | Complemento de extractores propio de Haul para yt-dlp, para enlaces que la versión incluida no maneja |
-| `vendor/yt-dlp/` | Copia incluida de yt-dlp 2026.08.19, con código fuente, sumas, firma y licencias |
+| `vendor/yt-dlp/` | Copia incluida de yt-dlp 2026.11.23, con código fuente, sumas, firma y licencias |
 | `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
 | `docs/manual.css` | Estilo de los manuales |
 | `README.es.md`, `README.md` | Esta documentación, en castellano y en inglés |
@@ -246,7 +246,7 @@ comprobada; las copias viejas se borran al abrir Haul.
 
 ## Mantenimiento
 
-Haul está hecho y probado con yt-dlp 2026.08.19, y esa copia exacta viaja dentro de la
+Haul está hecho y probado con yt-dlp 2026.11.23, y esa copia exacta viaja dentro de la
 aplicación (las copias más nuevas pueden venir de la propia app, ver arriba). Una versión fija mantiene estable el comportamiento y no depende de que el repositorio
 de yt-dlp siga en línea. La contra es que los sitios cambian seguido y, tarde o temprano, una versión
 fija deja de funcionar con ellos. Cuando eso pase, una versión nueva de Haul pasa a un yt-dlp

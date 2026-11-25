@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 20, 2026 · version 1.6.0 · GPL-2.0-only · built and tested with yt-dlp 2026.08.19
+Gabriel Castiglia · November 25, 2026 · version 1.6.1 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
 
 English · [Español](README.es.md)
 
@@ -166,7 +166,7 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | `scripts/manual.sh` | Builds the PDF manuals from the READMEs |
 | `scripts/actualizar-yt-dlp.sh` | Replaces the bundled yt-dlp with another verified release |
 | `plugins/haul/` | Haul's own yt-dlp extractor plugin, for links the bundled version does not handle |
-| `vendor/yt-dlp/` | Bundled copy of yt-dlp 2026.08.19, with sources, checksums, signature and licenses |
+| `vendor/yt-dlp/` | Bundled copy of yt-dlp 2026.11.23, with sources, checksums, signature and licenses |
 | `docs/Haul-manual-en.pdf`, `docs/Haul-manual-es.pdf` | PDF manuals, in English and Spanish |
 | `docs/manual.css` | Stylesheet for the manuals |
 | `README.md`, `README.es.md` | This documentation, in English and Spanish |
@@ -240,7 +240,7 @@ Haul starts.
 
 ## Maintenance
 
-Haul is built and tested with yt-dlp 2026.08.19, and that exact copy ships inside the app (newer copies
+Haul is built and tested with yt-dlp 2026.11.23, and that exact copy ships inside the app (newer copies
 can come from the app itself, see above).
 A pinned version keeps the behavior stable and does not depend on the yt-dlp repository staying
 online. The trade-off is that sites change often, and sooner or later a fixed version stops working with them. When that happens, a new release of Haul moves to a newer yt-dlp:

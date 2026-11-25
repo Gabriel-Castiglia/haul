@@ -24,7 +24,7 @@ if [[ ! -L build ]]; then
 fi
 source scripts/firma.sh
 
-VERSION="1.6.0"
+VERSION="1.6.1"
 COMPILACION="9"
 APP="build/Haul.app"
 

@@ -18,6 +18,14 @@ set -euo pipefail
 RAIZ="${0:A:h:h}"
 cd "$RAIZ"
 
+# The line under the title of each README names Haul's version and the yt-dlp it ships: both must be the real ones
+# (scripts/compilar.sh and vendor/yt-dlp/VERSION). Muelle's manuals went out three versions behind.
+VERSION=$(sed -n 's/^VERSION="\(.*\)"/\1/p' scripts/compilar.sh)
+YTDLP=$(<vendor/yt-dlp/VERSION)
+for f in README.md:version README.es.md:versión; do
+    grep -q "· ${f#*:} $VERSION ·.*yt-dlp $YTDLP" "${f%%:*}" || { echo "${f%%:*} does not say \"${f#*:} $VERSION\" and yt-dlp $YTDLP under its title" >&2; exit 1 }
+done
+
 REPO="https://github.com/Gabriel-Castiglia/haul"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
