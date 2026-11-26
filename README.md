@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 25, 2026 · version 1.6.1 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
+Gabriel Castiglia · November 27, 2026 · version 1.6.2 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
 
 English · [Español](README.es.md)
 
@@ -153,8 +153,7 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | Path | Contents |
 |---|---|
 | `fuentes/Haul.swift` | App source code (SwiftUI, a single file) |
-| `assets/` | The engraving the icon comes from |
-| `scripts/make_icon.py` | Draws the icon in its twelve colours (Python 3 with numpy, opencv-python, scipy and Pillow); the same script makes the icon of the Windows version |
+| `assets/icon.svg` | The drawing of the icon (made in its twelve colours by the author's icon tool, the same for the Windows version) |
 | `icono/icono-1024.png` | The app icon, on its default orange, source for every size |
 | `icono/accents/` | The icon on each colour, for the Dock |
 | `docs/images/` | Pictures of the window |
@@ -204,10 +203,9 @@ already ran keeps the dark window it had; a new installation follows macOS.
 
 ![The Haul window, light](docs/images/main-en.png)
 
-The icon is the eagle carrying a hare from the engraving "Eagle bringing a young woman a hare" by the
-Monogrammist B (Italy, 17th century), Rijksmuseum, public domain (CC0). `scripts/make_icon.py` cuts it
-out of the scan in `assets/` and draws it on each colour; it needs Python with numpy, opencv-python,
-scipy and Pillow. After drawing it again, `scripts/instalar.sh` reinstalls the app. If the Dock keeps
+The icon, a download arrow going into a tray, was drawn for Haul (2026) and is under the GPL-2.0 like the rest;
+the drawing is `assets/icon.svg`, and `icono/` holds it in each colour. After changing it, `scripts/instalar.sh`
+reinstalls the app. If the Dock keeps
 showing the old icon, quit Haul and empty the Dock's icon cache:
 `rm "$(getconf DARWIN_USER_CACHE_DIR)com.apple.dock.iconcache"; killall Dock`.
 

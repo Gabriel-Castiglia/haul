@@ -24,7 +24,7 @@ if [[ ! -L build ]]; then
 fi
 source scripts/firma.sh
 
-VERSION="1.6.1"
+VERSION="1.6.2"
 COMPILACION="9"
 APP="build/Haul.app"
 
@@ -57,7 +57,7 @@ cp vendor/yt-dlp/licenses/* "$APP/Contents/Resources/licenses/"
 cp LICENSE "$APP/Contents/Resources/licenses/Haul-LICENSE"
 
 # 3b. Haul's yt-dlp extractor plugin, without Python bytecode
-# The icon in each accent colour, for the Dock (scripts/make_icon.py draws them).
+# The icon in each accent colour, for the Dock (drawn from assets/icon.svg by the author's icon tool).
 mkdir -p "$APP/Contents/Resources/accents"
 cp icono/accents/*.png "$APP/Contents/Resources/accents/"
 

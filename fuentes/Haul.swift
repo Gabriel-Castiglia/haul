@@ -44,7 +44,7 @@ var sobreAcento: Color { Tema.shared.sobreAcento }
 
 // MARK: - Theme
 
-// An accent colour: the tile of the Dock icon (icono/accents/<key>.png, drawn by scripts/make_icon.py with the
+// An accent colour: the tile of the Dock icon (icono/accents/<key>.png, drawn from assets/icon.svg by the author's icon tool with the
 // same keys and the deeper tone as the tile) and the highlight colour of the window.
 struct ColorTema: Identifiable {
     let clave, es, en: String
@@ -1862,10 +1862,8 @@ struct AcercaDe: View {
                 + "la carga a casa.",
                 "To haul is to carry something heavy, and a haul is the load you bring back, like a day's catch. That is "
                 + "what the app does: with yt-dlp as its engine, it brings the load home."))
-            Text(tr("Ícono: el águila que trae una liebre del grabado «Águila que le trae una liebre a una joven», del "
-                    + "Monogramista B (Italia, siglo XVII), Rijksmuseum, dominio público.",
-                    "Icon: the eagle carrying a hare from the engraving \"Eagle bringing a young woman a hare\" by the "
-                    + "Monogrammist B (Italy, 17th century), Rijksmuseum, public domain."))
+            Text(tr("Ícono: una flecha de descarga que entra en una bandeja, dibujada para Haul (2026), bajo la GPL-2.0 como el resto.",
+                    "Icon: a download arrow going into a tray, drawn for Haul (2026), under the GPL-2.0 like the rest."))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             seccion(tr("Autor", "Author"), "Gabriel Castiglia · © 2026")
             seccion(tr("Licencia", "License"), tr(
