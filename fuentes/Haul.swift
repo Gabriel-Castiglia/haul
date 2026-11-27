@@ -164,7 +164,9 @@ final class Ajustes: ObservableObject {
     }
 
     private init() {
-        idioma = Idioma(rawValue: UserDefaults.standard.string(forKey: "idioma") ?? "") ?? .en
+        // First start: the language of the Mac when Haul has it (Spanish or Japanese), as on Windows.
+        let sistema = Locale.preferredLanguages.first.map { String($0.prefix(2)) } ?? "en"
+        idioma = Idioma(rawValue: UserDefaults.standard.string(forKey: "idioma") ?? "") ?? Idioma(rawValue: sistema) ?? .en
         guardar()
     }
 
@@ -485,8 +487,9 @@ final class Elemento: ObservableObject, Identifiable {
                 archivo = URL(fileURLWithPath: c[1])
             default:
                 if linea.hasPrefix("ERROR:") {
+                    // The row turns red when yt-dlp exits (terminó), not on this line: yt-dlp may still be
+                    // running, and the row could be removed or retried under it (Haul for Windows 1.8.0).
                     ultimoError = mensajeDeError(linea)
-                    if reintentos >= Elemento.maxReintentos { etapa = .fallo(mensajeDeError(linea)) }
                 }
             }
         }
@@ -900,6 +903,16 @@ final class Cola: ObservableObject {
         }
         for (id, p) in lecturas { canceladas.insert(id); p.terminate() }
         if let e = actual { canceladas.insert(ObjectIdentifier(e)); terminarArbol(proceso) }
+        // With automatic clearing on, the cancelled rows leave the list, as a single cancel already did.
+        for e in elementos.filter({ $0.etapa == .cancelada }) { despedir(e) }
+    }
+
+    // Moves a row one place up (-1) or down (+1): the row's menu and VoiceOver, besides dragging.
+    func moverUno(_ e: Elemento, _ paso: Int) {
+        guard let i = elementos.firstIndex(where: { $0 === e }) else { return }
+        let j = i + paso
+        guard elementos.indices.contains(j) else { return }
+        withAnimation(.easeOut(duration: 0.15)) { elementos.swapAt(i, j) }
     }
 
     // yt-dlp starts ffmpeg as a child process; both are stopped so no file stays open.
@@ -1479,7 +1492,12 @@ struct FilaElemento: View {
     }
 
     private var colorDeEstado: Color {
-        if case .fallo = e.etapa { return .red }
+        // A darker red on a light window and a brighter one on a dark window, so it reads at 4.5:1 or more.
+        if case .fallo = e.etapa {
+            return Color(nsColor: NSColor(name: nil) { a in
+                a.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? colorRGB(0xFF6B6B) : colorRGB(0xB71C1C)
+            })
+        }
         return .secondary
     }
 
@@ -1826,6 +1844,14 @@ struct Ventana: View {
             // Rows can be dragged to another place; downloads start in list order.
             ForEach(cola.elementos) { e in
                 FilaElemento(e: e, cola: cola)
+                    .contextMenu {
+                        Button(tr("Subir", "Move up", "上へ移動")) { cola.moverUno(e, -1) }
+                            .disabled(cola.elementos.first === e)
+                        Button(tr("Bajar", "Move down", "下へ移動")) { cola.moverUno(e, 1) }
+                            .disabled(cola.elementos.last === e)
+                    }
+                    .accessibilityAction(named: tr("Subir", "Move up", "上へ移動")) { cola.moverUno(e, -1) }
+                    .accessibilityAction(named: tr("Bajar", "Move down", "下へ移動")) { cola.moverUno(e, 1) }
                     .onDrag {
                         cola.arrastrado = e
                         return NSItemProvider(object: e.id.uuidString as NSString)

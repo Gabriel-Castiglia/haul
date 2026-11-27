@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.8.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.8.1 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
 
 [English](README.md) · Español · [日本語](README.ja.md)
 
@@ -19,7 +19,7 @@ Haul es una aplicación de macOS que hace de interfaz de
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
 el progreso y organiza una cola de descargas. El trabajo lo hacen yt-dlp, incluido en la aplicación
 en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés, castellano y japonés, y se elige en el menú Language (Idioma cuando
-la app está en castellano, 言語 en japonés). La primera vez arranca en inglés y después recuerda la elección. La
+la app está en castellano, 言語 en japonés). La primera vez sigue a la Mac si está en español o japonés, y si no arranca en inglés; después recuerda la elección. La
 ventana puede ser clara, oscura o seguir a macOS, en uno de doce colores.
 
 ## Requisitos
@@ -50,7 +50,7 @@ aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La a
 avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
 
 ```
-shasum -a 256 Haul-1.8.0.pkg
+shasum -a 256 Haul-1.8.1.pkg
 ```
 
 Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
@@ -97,7 +97,8 @@ Cada fila se puede pausar con su botón de pausa y seguir con el de reproducir; 
 archivos a medias quedan en el disco y la descarga retoma donde quedó. «Pausar todo», arriba de la
 cola, frena la cola entera: la descarga en curso se detiene y espera primera en la fila hasta «Seguir
 todo». «Reintentar todas» aparece cuando alguna descarga falló y vuelve a lanzar todas las fallidas.
-Las filas se arrastran con el mouse para cambiar el orden, y las descargas arrancan en el orden de la
+Las filas se arrastran con el mouse para cambiar el orden, o se mueven un lugar con Subir y Bajar en el menú de
+la fila (clic derecho; VoiceOver ofrece las mismas dos acciones), y las descargas arrancan en el orden de la
 lista.
 
 Una descarga que falla se reintenta hasta cuatro veces, con dos segundos entre cada intento, y la fila

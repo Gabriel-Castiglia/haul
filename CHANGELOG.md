@@ -2,6 +2,27 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.8.1 - 2026-11-27
+
+The rest of what Haul 1.8.0 for Windows brought, where it applies on the Mac.
+
+### Added
+
+- Rows of the queue can be moved one place with Move up and Move down in the row's menu (right-click), and VoiceOver
+  offers the same two actions, besides dragging with the mouse.
+- On the first start Haul follows the Mac when it is in Spanish or Japanese, and is in English otherwise.
+
+### Changed
+
+- "Check for updates" asked again while a check or an update is under way says so; before, it did nothing.
+- The red of a failed row is darker on a light window and brighter on a dark one, so it reads at 4.5:1 or more in both.
+
+### Fixed
+
+- A row whose last attempt failed turned red while yt-dlp was still running, and could be removed or retried under
+  it. It now turns red when yt-dlp exits.
+- "Cancel all" with "Clear finished automatically" on removes the cancelled rows, as a single cancel already did.
+
 ## 1.8.0 - 2026-11-27
 
 What Haul 1.8.0 for Windows brought, on the Mac.

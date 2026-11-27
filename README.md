@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 27, 2026 · version 1.8.0 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
+Gabriel Castiglia · November 27, 2026 · version 1.8.1 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
 
 English · [Español](README.es.md) · [日本語](README.ja.md)
 
@@ -19,7 +19,8 @@ Haul is a macOS app that works as a front end for
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). The app builds the command, shows the
 progress and manages a download queue. The actual work is done by yt-dlp, bundled with the app at
 a fixed, verified version, and by ffmpeg, installed with Homebrew. The interface is available in English, Spanish and Japanese, selectable from the Language
-menu; it starts in English on first launch and remembers the choice. The window can be light, dark or
+menu; on first launch it follows the Mac when the Mac is in Spanish or Japanese, and is in English
+otherwise, and it remembers the choice. The window can be light, dark or
 follow macOS, in one of twelve colours.
 
 ## Requirements
@@ -49,7 +50,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.8.0.pkg
+shasum -a 256 Haul-1.8.1.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
@@ -95,7 +96,8 @@ Any row can be paused with its pause button and continued with its play button; 
 stay on disk meanwhile, so the download picks up where it stopped. "Pause all", above the queue,
 holds the whole queue: the running download stops and waits first in line until "Resume all".
 "Retry all" appears when some download failed and starts every failed one again. Rows can be
-dragged with the mouse to change their order, and downloads start in the order of the list.
+dragged with the mouse to change their order, or moved one place with Move up and Move down in the row's menu
+(right-click; VoiceOver offers the same two actions), and downloads start in the order of the list.
 
 A download that fails is tried again up to four times, two seconds apart, and the row shows which
 attempt is running ("Retry 2/4"). Partial files are kept between attempts, so yt-dlp resumes where
