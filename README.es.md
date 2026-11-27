@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.6.2 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.7.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
 
 [English](README.md) · Español
 
@@ -112,7 +112,7 @@ sale sola de la lista y el resumen la sigue contando; las que fallaron quedan, p
 Al marcarla también se limpia lo que ya había terminado. La aplicación recuerda la elección.
 
 Los videos con «instrumental» en el título esperan en la cola, en pausa, salvo que esté marcada
-«Descargar instrumentales». Una fila en pausa se puede bajar sola con su botón de descarga, y al
+«Descargar instrumentales». Una fila en pausa se puede descargar sola con su botón de descarga, y al
 marcar la opción se reanudan todas.
 
 El botón ⓘ de la ventana, o Haul > Acerca de Haul en la barra de menús, muestra la versión, qué
@@ -143,9 +143,9 @@ de la lista y se numeran en el orden de la lista: `01 - Título.mp4`, `02 - Tít
 video se puede cancelar o reintentar por separado. Una lista de más de 200 videos pide confirmación
 antes de entrar a la cola.
 
-Un enlace a un video abierto desde una lista trae la lista entera mientras esté marcada «Bajar
+Un enlace a un video abierto desde una lista trae la lista entera mientras esté marcada «Descargar
 listas enteras», que viene marcada. Con la opción desmarcada, una tarjeta en la ventana pregunta cada
-vez si se baja solo ese video o la lista entera. La app recuerda el ajuste. Los demás enlaces se
+vez si se descarga solo ese video o la lista entera. La app recuerda el ajuste. Los demás enlaces se
 descargan tal cual, un video cada uno.
 
 Algunas páginas de etiqueta que agrupan varias publicaciones, cada una con un video embebido, se leen
@@ -230,7 +230,7 @@ que el nombre del programa y su versión. Acerca de Haul apaga la búsqueda diar
 
 La cola sobrevive al cierre de Haul: las filas en cola, en pausa y con error y los enlaces que esperaban vuelven
 en el mismo orden; una descarga que estaba en curso vuelve a la cola y sigue desde sus archivos parciales. Al
-salir, Haul detiene yt-dlp, así que nada se sigue bajando sin Haul. La cola se guarda en
+salir, Haul detiene yt-dlp, así que nada se sigue descargando sin Haul. La cola se guarda en
 `~/Library/Application Support/Haul/queue.json`, a través de un archivo temporal; un archivo dañado queda aparte
 como `queue.damaged.json` y Haul empieza con la cola vacía.
 
@@ -278,12 +278,12 @@ separada por tabuladores:
 
 | Línea | Contenido | Origen |
 |---|---|---|
-| `META` | id, canal, autor, título y miniatura, que se revisan antes de bajar | `-O pre_process:…` |
+| `META` | id, canal, autor, título y miniatura, que se revisan antes de descargar | `-O pre_process:…` |
 | `INFO` | título, autor, duración, miniatura y nombre del archivo | `-O before_dl:…` |
 | `AVANCE` | porcentaje, velocidad y tiempo restante | `--progress-template` |
 | `ARCHIVO` | ruta final del archivo | `-O after_move:…` |
 
-Los instrumentales en pausa se frenan con `--match-filters`, así yt-dlp no baja nada hasta que se
+Los instrumentales en pausa se frenan con `--match-filters`, así yt-dlp no descarga nada hasta que se
 permiten.
 
 Algunos enlaces fallan dentro del propio yt-dlp, incluso en su última versión: una página de video

@@ -2,6 +2,25 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.7.0 - 2026-11-27
+
+### Security
+
+- yt-dlp always runs with `--ignore-config`. Before, it read a `yt-dlp.conf` from the download folder (its working
+  directory, usually Downloads, where any web page can leave a file), and options in it such as `--exec` would run
+  commands. As a consequence, the user's own yt-dlp configuration files (`~/.config/yt-dlp/config` and the like) are
+  no longer applied either.
+- yt-dlp loads only Haul's own plugins (`--no-plugin-dirs`, then `--plugin-dirs` with Haul's `plugins` folder).
+  Before, it also loaded any plugin in `~/.config/yt-dlp/plugins` and its other default folders, where any program
+  run by the user can leave Python code.
+- Thumbnails are shown only from `http` and `https` addresses; local paths are ignored.
+
+### Changed
+
+- The Spanish texts address the user as "tú" in neutral Spanish, as Haul for Windows does: for example "Pega uno o
+  varios enlaces", "Reanudar todo" (was "Seguir todo"), "Descargar listas enteras" (was "Bajar listas enteras") and
+  "Quitar de la cola" (was "Sacar de la cola").
+
 ## 1.6.2 - 2026-11-27
 
 ### Changed

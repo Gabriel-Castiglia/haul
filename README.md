@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 27, 2026 · version 1.6.2 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
+Gabriel Castiglia · November 27, 2026 · version 1.7.0 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
 
 English · [Español](README.es.md)
 

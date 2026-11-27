@@ -30,6 +30,17 @@ nonisolated(unsafe) var rutaYtDlp = Bundle.main.path(forResource: "yt-dlp", ofTy
 // Haul's yt-dlp extractor plugin (plugins/haul in the repository), for links the pinned version
 // does not handle on its own.
 let rutaComplementos = Bundle.main.path(forResource: "plugins", ofType: nil) ?? ""
+// Options that go first on every yt-dlp command line. yt-dlp reads no configuration file (a yt-dlp.conf left in the
+// download folder, its working directory, could otherwise add options such as --exec) and loads plugins only from
+// Haul's own folder, not from ~/.config/yt-dlp/plugins or the other default places any program can write to.
+let opcionesYtDlp = ["--ignore-config", "--no-plugin-dirs", "--plugin-dirs", rutaComplementos]
+
+// The address of a thumbnail, only when it is on the web: a local or network path from yt-dlp's output is ignored.
+func urlRemota(_ texto: String?) -> URL? {
+    guard let t = texto, let u = URL(string: t), let esquema = u.scheme?.lowercased(),
+          esquema == "http" || esquema == "https", u.host != nil else { return nil }
+    return u
+}
 let versionYtDlpIncluida = Bundle.main.object(forInfoDictionaryKey: "YtDlpVersion") as? String ?? "?"
 nonisolated(unsafe) var versionYtDlp = versionYtDlpIncluida
 
@@ -275,13 +286,13 @@ func traducirError(_ mensaje: String) -> String {
                                         "Age confirmation with an account is required; it cannot be downloaded."),
         ("Unsupported URL", "Ese sitio no está soportado por yt-dlp.", "That site is not supported by yt-dlp."),
         ("is not a valid URL", "Eso no parece un enlace válido.", "That does not look like a valid link."),
-        ("Unable to download webpage", "No se pudo abrir la página: revisá la conexión.",
+        ("Unable to download webpage", "No se pudo abrir la página: revisa la conexión.",
                                        "The page could not be opened; check the connection."),
         ("Requested format is not available", "Ese formato no está disponible para este video.",
                                               "That format is not available for this video."),
-        ("Sign in to confirm you", "El sitio pide verificar que no sos un robot: instalá la versión más nueva de Haul.",
+        ("Sign in to confirm you", "El sitio pide verificar que no eres un robot: instala la versión más nueva de Haul.",
                                    "The site asks to confirm you are not a bot; install the latest version of Haul."),
-        ("does not have a videos tab", "Ese canal no tiene videos para bajar.", "That channel has no videos to download."),
+        ("does not have a videos tab", "Ese canal no tiene videos para descargar.", "That channel has no videos to download."),
         ("The playlist does not exist", "La lista no existe o es privada.", "The playlist does not exist or is private."),
     ]
     for (patron, es, en) in conocidos where mensaje.localizedCaseInsensitiveContains(patron) {
@@ -440,14 +451,14 @@ final class Elemento: ObservableObject, Identifiable {
             case "META" where c.count >= 7:
                 info = InfoVideo(titulo: c[6], autor: c[2] != "NA" ? c[2] : (c[4] != "NA" ? c[4] : ""),
                                  duracion: info?.duracion ?? "",
-                                 miniatura: (c.count >= 8 && c[7] != "NA" ? URL(string: c[7]) : nil) ?? info?.miniatura)
+                                 miniatura: (c.count >= 8 && c[7] != "NA" ? urlRemota(c[7]) : nil) ?? info?.miniatura)
                 instrumental = Filtro.esInstrumental(c[6])
                 descartado = Filtro.descartado(id: c[1], titulo: c[6], fuentes: [c[2], c[3], c[4], c[5]])
             case "INFO" where c.count >= 5:
                 info = InfoVideo(titulo: c[1],
                                  autor: c[2] == "NA" ? "" : c[2],
                                  duracion: duracion(c[3]),
-                                 miniatura: URL(string: c[4]) ?? info?.miniatura)
+                                 miniatura: urlRemota(c[4]) ?? info?.miniatura)
                 if c.count >= 6, !c[5].isEmpty, c[5] != "NA" { anotar(c[5]) }
             case "AVANCE" where c.count >= 4:
                 let numero = c[1].trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "%", with: "")
@@ -685,7 +696,7 @@ final class Cola: ObservableObject {
             f.instrumental = g.instrumental
             f.forzar = g.forzar
             if let t = g.titulo {
-                f.info = InfoVideo(titulo: t, autor: g.autor ?? "", duracion: g.duracion ?? "", miniatura: g.miniatura.flatMap(URL.init(string:)))
+                f.info = InfoVideo(titulo: t, autor: g.autor ?? "", duracion: g.duracion ?? "", miniatura: urlRemota(g.miniatura))
             }
             f.baseArchivo = g.baseArchivo.map { URL(fileURLWithPath: $0) }
             f.previos = Set(g.previos ?? [])
@@ -727,7 +738,7 @@ final class Cola: ObservableObject {
         guard ocupada || hayPendientes else { return true }
         let a = NSAlert()
         a.messageText = tr("Hay una descarga en curso", "A download is running")
-        a.informativeText = tr("Haul se cerrará para instalar la versión nueva. La cola se guarda, y lo que se estaba bajando sigue desde donde quedó al volver a abrirse.",
+        a.informativeText = tr("Haul se cerrará para instalar la versión nueva. La cola se guarda, y lo que se estaba descargando sigue desde donde quedó al volver a abrirse.",
                                "Haul will close to install the new version. The queue is saved, and what was being downloaded goes on from where it was when Haul opens again.")
         a.addButton(withTitle: tr("Actualizar ahora", "Update now"))
         a.addButton(withTitle: tr("Cuando termine la cola", "When the queue ends"))
@@ -1020,8 +1031,7 @@ final class Cola: ObservableObject {
         //   INFO     video metadata and file name, before downloading (-O before_dl)
         //   AVANCE   percentage, speed and time remaining (--progress-template)
         //   ARCHIVO  final path, after merging or converting (-O after_move)
-        p.arguments = [rutaYtDlp] + e.formato.argumentos + [
-            "--plugin-dirs", rutaComplementos,
+        p.arguments = [rutaYtDlp] + opcionesYtDlp + e.formato.argumentos + [
             "--newline", "--color", "no_color", "--no-playlist",
             "-o", e.prefijo.map { "\($0) - %(title)s.%(ext)s" } ?? "%(title)s.%(ext)s",
             "--match-filters", Filtro.expresion(instrumentales: instrumentales || e.forzar),
@@ -1119,7 +1129,7 @@ final class Cola: ObservableObject {
 
         let p = Process()
         p.executableURL = URL(fileURLWithPath: rutaPython)
-        p.arguments = [rutaYtDlp, "--plugin-dirs", rutaComplementos,
+        p.arguments = [rutaYtDlp] + opcionesYtDlp + [
                        "--flat-playlist", "--yes-playlist", "-J", "--no-warnings", "--", fila.enlace]
         var entorno = ProcessInfo.processInfo.environment
         entorno["PATH"] = carpetaHomebrew + ":" + (entorno["PATH"] ?? "/usr/bin:/bin")
@@ -1198,7 +1208,7 @@ final class Cola: ObservableObject {
             videos.append((enlace, InfoVideo(titulo: v["title"] as? String ?? enlace,
                                              autor: v["channel"] as? String ?? v["uploader"] as? String ?? "",
                                              duracion: dur,
-                                             miniatura: (miniaturas?.last?["url"] as? String).flatMap(URL.init(string:)))))
+                                             miniatura: urlRemota(miniaturas?.last?["url"] as? String))))
         }
         guard !videos.isEmpty else {
             fila.etapa = .fallo(tr("La lista está vacía.", "The playlist is empty."))
@@ -1470,7 +1480,7 @@ struct FilaElemento: View {
                 if !e.esLectura {
                     BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause")) { cola.pausar(e) }
                 }
-                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la cola", "Remove from queue")) { cola.quitar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Quitar de la cola", "Remove from queue")) { cola.quitar(e) }
             case .leyendo:
                 BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist")) { cola.cancelar(e) }
             case .preparando, .bajando, .procesando, .esperando:
@@ -1661,7 +1671,7 @@ struct Ventana: View {
                         .padding(.top, 1)
                     ZStack(alignment: .topLeading) {
                         if cola.texto.isEmpty {
-                            Text(tr("Pegá uno o varios enlaces, uno por línea", "Paste one or more links, one per line"))
+                            Text(tr("Pega uno o varios enlaces, uno por línea", "Paste one or more links, one per line"))
                                 .font(.system(size: 14))
                                 .foregroundStyle(.tertiary)
                                 .padding(.leading, 5)
@@ -1715,7 +1725,7 @@ struct Ventana: View {
     private var opciones: some View {
         Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
             GridRow {
-                Toggle(tr("Bajar listas enteras", "Download whole playlists"), isOn: $cola.listaEntera)
+                Toggle(tr("Descargar listas enteras", "Download whole playlists"), isOn: $cola.listaEntera)
                     .help(tr("Activado, un video que está dentro de una lista trae la lista entera; desactivado, pregunta cada vez",
                              "When on, a video that is part of a playlist brings the whole playlist; when off, it asks every time"))
                 Toggle(tr("Descargar instrumentales", "Download instrumentals"), isOn: $cola.instrumentales)
@@ -1761,7 +1771,7 @@ struct Ventana: View {
             TarjetaPregunta(
                 simbolo: "list.bullet.rectangle.portrait",
                 titulo: tr("Este video está dentro de una lista", "This video is part of a playlist"),
-                texto: tr("Podés bajar solo este video o la lista entera. Con la lista entera, cada video entra a la "
+                texto: tr("Puedes descargar solo este video o la lista entera. Con la lista entera, cada video entra a la "
                           + "cola por separado y se guarda en una carpeta con el nombre de la lista, numerado en orden.",
                           "You can download just this video or the whole playlist. With the whole playlist, each video "
                           + "joins the queue on its own and is saved in a folder named after the playlist, in order."),
@@ -1793,7 +1803,7 @@ struct Ventana: View {
                         Button(tr("Reintentar todas", "Retry all")) { cola.reintentarFallidas() }
                     }
                     if cola.enPausa {
-                        Button(tr("Seguir todo", "Resume all")) { cola.reanudarTodo() }
+                        Button(tr("Reanudar todo", "Resume all")) { cola.reanudarTodo() }
                     } else if cola.hayPendientes {
                         Button(tr("Pausar todo", "Pause all")) { cola.pausarTodo() }
                     }
@@ -1880,7 +1890,7 @@ struct AcercaDe: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(tr("Versiones nuevas", "New versions")).font(.headline)
-                Toggle(tr("Buscar versiones nuevas de Haul una vez al día (se instalan solas si lo pedís)",
+                Toggle(tr("Buscar versiones nuevas de Haul una vez al día (se instalan solas si lo pides)",
                           "Look for new versions of Haul once a day (they install themselves when you ask)"), isOn: $buscarVersiones)
                 Toggle(tr("Actualizar yt-dlp solo (desde sus versiones oficiales en GitHub, una vez al día)",
                           "Update yt-dlp by itself (from its official releases on GitHub, once a day)"), isOn: $actualizarYtDlp)
