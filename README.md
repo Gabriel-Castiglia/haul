@@ -49,7 +49,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.6.0.pkg
+shasum -a 256 Haul-1.7.0.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,

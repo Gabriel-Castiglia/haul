@@ -50,7 +50,7 @@ aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La a
 avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
 
 ```
-shasum -a 256 Haul-1.6.0.pkg
+shasum -a 256 Haul-1.7.0.pkg
 ```
 
 Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
