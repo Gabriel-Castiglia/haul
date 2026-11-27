@@ -58,25 +58,25 @@ var sobreAcento: Color { Tema.shared.sobreAcento }
 // An accent colour: the tile of the Dock icon (icono/accents/<key>.png, drawn from assets/icon.svg by the author's icon tool with the
 // same keys and the deeper tone as the tile) and the highlight colour of the window.
 struct ColorTema: Identifiable {
-    let clave, es, en: String
+    let clave, es, en, ja: String
     let hondo, vivo: UInt32
     var id: String { clave }
-    var nombre: String { tr(es, en) }
+    var nombre: String { tr(es, en, ja) }
 }
 
 let coloresTema: [ColorTema] = [
-    ColorTema(clave: "ember", es: "Naranja", en: "Orange", hondo: 0xD9652F, vivo: 0xF08A5D),    // the default
-    ColorTema(clave: "gold", es: "Dorado", en: "Gold", hondo: 0x9A6F00, vivo: 0xE2B84C),
-    ColorTema(clave: "purple", es: "Morado", en: "Purple", hondo: 0x5B2A86, vivo: 0xB392E0),
-    ColorTema(clave: "sky", es: "Celeste", en: "Sky blue", hondo: 0x1A8CD8, vivo: 0x5CB8F0),
-    ColorTema(clave: "red", es: "Rojo", en: "Red", hondo: 0xC8102E, vivo: 0xF2545B),
-    ColorTema(clave: "yellow", es: "Amarillo", en: "Yellow", hondo: 0xB88A00, vivo: 0xF5C842),
-    ColorTema(clave: "green", es: "Verde", en: "Green", hondo: 0x1E8A43, vivo: 0x4CC27A),
-    ColorTema(clave: "teal", es: "Verde azulado", en: "Teal", hondo: 0x00796B, vivo: 0x4DB6AC),
-    ColorTema(clave: "blue", es: "Azul", en: "Blue", hondo: 0x1F5FD1, vivo: 0x6E9BFF),
-    ColorTema(clave: "pink", es: "Rosa", en: "Pink", hondo: 0xC2185B, vivo: 0xF06292),
-    ColorTema(clave: "black", es: "Negro", en: "Black", hondo: 0x1D1D1F, vivo: 0xC7C7CC),
-    ColorTema(clave: "white", es: "Blanco", en: "White", hondo: 0x8E8E93, vivo: 0xF5F5F7),
+    ColorTema(clave: "ember", es: "Naranja", en: "Orange", ja: "オレンジ", hondo: 0xD9652F, vivo: 0xF08A5D),    // the default
+    ColorTema(clave: "gold", es: "Dorado", en: "Gold", ja: "ゴールド", hondo: 0x9A6F00, vivo: 0xE2B84C),
+    ColorTema(clave: "purple", es: "Morado", en: "Purple", ja: "パープル", hondo: 0x5B2A86, vivo: 0xB392E0),
+    ColorTema(clave: "sky", es: "Celeste", en: "Sky blue", ja: "スカイ ブルー", hondo: 0x1A8CD8, vivo: 0x5CB8F0),
+    ColorTema(clave: "red", es: "Rojo", en: "Red", ja: "レッド", hondo: 0xC8102E, vivo: 0xF2545B),
+    ColorTema(clave: "yellow", es: "Amarillo", en: "Yellow", ja: "イエロー", hondo: 0xB88A00, vivo: 0xF5C842),
+    ColorTema(clave: "green", es: "Verde", en: "Green", ja: "グリーン", hondo: 0x1E8A43, vivo: 0x4CC27A),
+    ColorTema(clave: "teal", es: "Verde azulado", en: "Teal", ja: "ティール", hondo: 0x00796B, vivo: 0x4DB6AC),
+    ColorTema(clave: "blue", es: "Azul", en: "Blue", ja: "ブルー", hondo: 0x1F5FD1, vivo: 0x6E9BFF),
+    ColorTema(clave: "pink", es: "Rosa", en: "Pink", ja: "ピンク", hondo: 0xC2185B, vivo: 0xF06292),
+    ColorTema(clave: "black", es: "Negro", en: "Black", ja: "ブラック", hondo: 0x1D1D1F, vivo: 0xC7C7CC),
+    ColorTema(clave: "white", es: "Blanco", en: "White", ja: "ホワイト", hondo: 0x8E8E93, vivo: 0xF5F5F7),
 ]
 
 func colorRGB(_ v: UInt32) -> NSColor {
@@ -142,9 +142,15 @@ final class Tema: ObservableObject {
 // MARK: - Localization
 
 enum Idioma: String, CaseIterable, Identifiable {
-    case en, es
+    case en, es, ja
     var id: String { rawValue }
-    var nombre: String { self == .en ? "English" : "Español" }
+    var nombre: String {
+        switch self {
+        case .en: "English"
+        case .es: "Español"
+        case .ja: "日本語"
+        }
+    }
 }
 
 // Interface language, chosen from the Language menu and remembered between launches.
@@ -169,8 +175,12 @@ final class Ajustes: ObservableObject {
 }
 
 // Returns the text for the current interface language.
-func tr(_ es: String, _ en: String) -> String {
-    Ajustes.shared.idioma == .es ? es : en
+func tr(_ es: String, _ en: String, _ ja: String) -> String {
+    switch Ajustes.shared.idioma {
+    case .es: es
+    case .ja: ja
+    case .en: en
+    }
 }
 
 // MARK: - Formats
@@ -179,10 +189,10 @@ enum Formato: String, CaseIterable, Identifiable {
     case video, audio
     var id: String { rawValue }
 
-    var titulo: String { self == .video ? "Video" : tr("Solo audio", "Audio only") }
+    var titulo: String { self == .video ? tr("Video", "Video", "動画") : tr("Solo audio", "Audio only", "音声のみ") }
     var detalle: String {
-        self == .video ? tr("MP4 · mejor calidad", "MP4 · best quality")
-                       : tr("MP3 · máxima calidad", "MP3 · highest quality")
+        self == .video ? tr("MP4 · mejor calidad", "MP4 · best quality", "MP4 · 最高画質")
+                       : tr("MP3 · máxima calidad", "MP3 · highest quality", "MP3 · 最高音質")
     }
     var simbolo: String { self == .video ? "film.stack" : "music.note" }
 
@@ -246,7 +256,7 @@ func nombreDeCarpeta(_ titulo: String) -> String {
         .trimmingCharacters(in: .whitespaces)
     while t.hasPrefix(".") { t.removeFirst() }
     if t.count > 120 { t = String(t.prefix(120)).trimmingCharacters(in: .whitespaces) }
-    return t.isEmpty ? tr("Lista", "Playlist") : t
+    return t.isEmpty ? tr("Lista", "Playlist", "プレイリスト") : t
 }
 
 // Normalizes a yt-dlp progress field; unknown values are returned empty.
@@ -280,23 +290,23 @@ func mensajeDeError(_ linea: String) -> String {
 func traducirError(_ mensaje: String) -> String {
     let conocidos = [
         ("unavailable", "El video no está disponible (borrado, privado o bloqueado).",
-                        "The video is unavailable (removed, private or blocked)."),
-        ("Private video", "Es un video privado.", "This is a private video."),
+                        "The video is unavailable (removed, private or blocked).", "この動画は利用できません (削除済み、非公開、またはブロックされています)。"),
+        ("Private video", "Es un video privado.", "This is a private video.", "非公開の動画です。"),
         ("Sign in to confirm your age", "Pide confirmar la edad con una cuenta: no se puede descargar así.",
-                                        "Age confirmation with an account is required; it cannot be downloaded."),
-        ("Unsupported URL", "Ese sitio no está soportado por yt-dlp.", "That site is not supported by yt-dlp."),
-        ("is not a valid URL", "Eso no parece un enlace válido.", "That does not look like a valid link."),
+                                        "Age confirmation with an account is required; it cannot be downloaded.", "アカウントでの年齢確認が必要なため、ダウンロードできません。"),
+        ("Unsupported URL", "Ese sitio no está soportado por yt-dlp.", "That site is not supported by yt-dlp.", "このサイトは yt-dlp に対応していません。"),
+        ("is not a valid URL", "Eso no parece un enlace válido.", "That does not look like a valid link.", "有効なリンクではないようです。"),
         ("Unable to download webpage", "No se pudo abrir la página: revisa la conexión.",
-                                       "The page could not be opened; check the connection."),
+                                       "The page could not be opened; check the connection.", "ページを開けませんでした。接続を確認してください。"),
         ("Requested format is not available", "Ese formato no está disponible para este video.",
-                                              "That format is not available for this video."),
+                                              "That format is not available for this video.", "この動画ではその形式を利用できません。"),
         ("Sign in to confirm you", "El sitio pide verificar que no eres un robot: instala la versión más nueva de Haul.",
-                                   "The site asks to confirm you are not a bot; install the latest version of Haul."),
-        ("does not have a videos tab", "Ese canal no tiene videos para descargar.", "That channel has no videos to download."),
-        ("The playlist does not exist", "La lista no existe o es privada.", "The playlist does not exist or is private."),
+                                   "The site asks to confirm you are not a bot; install the latest version of Haul.", "サイトがロボットでないことの確認を求めています。Haul の最新バージョンをインストールしてください。"),
+        ("does not have a videos tab", "Ese canal no tiene videos para descargar.", "That channel has no videos to download.", "このチャンネルにはダウンロードできる動画がありません。"),
+        ("The playlist does not exist", "La lista no existe o es privada.", "The playlist does not exist or is private.", "プレイリストが存在しないか、非公開です。"),
     ]
-    for (patron, es, en) in conocidos where mensaje.localizedCaseInsensitiveContains(patron) {
-        return tr(es, en)
+    for (patron, es, en, ja) in conocidos where mensaje.localizedCaseInsensitiveContains(patron) {
+        return tr(es, en, ja)
     }
     return mensaje
 }
@@ -526,31 +536,31 @@ final class Elemento: ObservableObject, Identifiable {
     var textoDeEstado: String {
         // While retrying, the attempt is shown first: "Retry 2/4 · 37 % · …".
         let max = Elemento.maxReintentos
-        let intento = reintentos > 0 ? tr("Reintento \(reintentos)/\(max)", "Retry \(reintentos)/\(max)") + " · " : ""
+        let intento = reintentos > 0 ? tr("Reintento \(reintentos)/\(max)", "Retry \(reintentos)/\(max)", "再試行 \(reintentos)/\(max)") + " · " : ""
         switch etapa {
-        case .enCola: return tr("En cola", "Queued") + " · \(formato.titulo)"
-        case .leyendo: return intento + tr("Leyendo la lista…", "Reading the playlist…")
-        case .preparando: return intento + tr("Preparando…", "Preparing…")
+        case .enCola: return tr("En cola", "Queued", "待機中") + " · \(formato.titulo)"
+        case .leyendo: return intento + tr("Leyendo la lista…", "Reading the playlist…", "プレイリストを読み込んでいます…")
+        case .preparando: return intento + tr("Preparando…", "Preparing…", "準備しています…")
         case .esperando:
-            return tr("Falló; reintento \(reintentos) de \(max) en 2 s…", "Failed; retry \(reintentos) of \(max) in 2 s…")
-        case .pausada: return tr("En pausa: es un instrumental", "Paused: it is an instrumental")
+            return tr("Falló; reintento \(reintentos) de \(max) en 2 s…", "Failed; retry \(reintentos) of \(max) in 2 s…", "失敗しました。2 秒後に再試行します (\(reintentos)/\(max))…")
+        case .pausada: return tr("En pausa: es un instrumental", "Paused: it is an instrumental", "一時停止中: インストゥルメンタルです")
         case .detenida:
-            return tr("En pausa", "Paused") + (progreso > 0 ? " · \(Int(progreso * 100)) %" : "")
+            return tr("En pausa", "Paused", "一時停止中") + (progreso > 0 ? " · \(Int(progreso * 100)) %" : "")
         case .procesando:
-            return intento + (formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…")
-                                                : tr("Uniendo imagen y sonido…", "Merging picture and sound…"))
+            return intento + (formato == .audio ? tr("Convirtiendo a MP3…", "Converting to MP3…", "MP3 に変換しています…")
+                                                : tr("Uniendo imagen y sonido…", "Merging picture and sound…", "映像と音声を結合しています…"))
         case .bajando:
             var partes = ["\(Int(progreso * 100)) %"]
             if !velocidad.isEmpty { partes.append(velocidad) }
-            if !restante.isEmpty { partes.append(tr("quedan \(restante)", "\(restante) left")) }
-            if formato == .video && parte > 1 { partes.append(tr("sonido", "sound")) }
+            if !restante.isEmpty { partes.append(tr("quedan \(restante)", "\(restante) left", "残り \(restante)")) }
+            if formato == .video && parte > 1 { partes.append(tr("sonido", "sound", "音声")) }
             return intento + partes.joined(separator: " · ")
         case .lista:
             let datos = [info?.autor, info?.duracion].compactMap { $0 }.filter { !$0.isEmpty }
-            return datos.isEmpty ? tr("Listo", "Done") : datos.joined(separator: " · ")
-        case .cancelada: return tr("Cancelada", "Cancelled")
+            return datos.isEmpty ? tr("Listo", "Done", "完了") : datos.joined(separator: " · ")
+        case .cancelada: return tr("Cancelada", "Cancelled", "キャンセル済み")
         case .fallo(let m):
-            return traducirError(m) + (reintentos > 0 ? tr(" · \(reintentos) reintentos", " · \(reintentos) retries") : "")
+            return traducirError(m) + (reintentos > 0 ? tr(" · \(reintentos) reintentos", " · \(reintentos) retries", " · 再試行 \(reintentos) 回") : "")
         }
     }
 }
@@ -718,9 +728,9 @@ final class Cola: ObservableObject {
 
     private func avisarDanada() {
         let a = NSAlert()
-        a.messageText = tr("La cola guardada estaba dañada", "The saved queue was damaged")
+        a.messageText = tr("La cola guardada estaba dañada", "The saved queue was damaged", "保存されたキューが壊れていました")
         a.informativeText = tr("Haul empieza con la cola vacía. El archivo quedó aparte como queue.damaged.json, en ~/Library/Application Support/Haul.",
-                               "Haul starts with an empty queue. The file was set aside as queue.damaged.json, in ~/Library/Application Support/Haul.")
+                               "Haul starts with an empty queue. The file was set aside as queue.damaged.json, in ~/Library/Application Support/Haul.", "Haul は空のキューで起動します。ファイルは ~/Library/Application Support/Haul に queue.damaged.json として退避しました。")
         a.runModal()
     }
 
@@ -737,12 +747,12 @@ final class Cola: ObservableObject {
     func listaParaActualizar() async -> Bool {
         guard ocupada || hayPendientes else { return true }
         let a = NSAlert()
-        a.messageText = tr("Hay una descarga en curso", "A download is running")
+        a.messageText = tr("Hay una descarga en curso", "A download is running", "ダウンロード中です")
         a.informativeText = tr("Haul se cerrará para instalar la versión nueva. La cola se guarda, y lo que se estaba descargando sigue desde donde quedó al volver a abrirse.",
-                               "Haul will close to install the new version. The queue is saved, and what was being downloaded goes on from where it was when Haul opens again.")
-        a.addButton(withTitle: tr("Actualizar ahora", "Update now"))
-        a.addButton(withTitle: tr("Cuando termine la cola", "When the queue ends"))
-        a.addButton(withTitle: tr("Cancelar", "Cancel"))
+                               "Haul will close to install the new version. The queue is saved, and what was being downloaded goes on from where it was when Haul opens again.", "新しいバージョンをインストールするため、Haul を終了します。キューは保存され、ダウンロード中だったものは Haul を再び開いたときに続きから再開します。")
+        a.addButton(withTitle: tr("Actualizar ahora", "Update now", "今すぐ更新"))
+        a.addButton(withTitle: tr("Cuando termine la cola", "When the queue ends", "キューの完了後"))
+        a.addButton(withTitle: tr("Cancelar", "Cancel", "キャンセル"))
         switch a.runModal() {
         case .alertFirstButtonReturn: return true
         case .alertSecondButtonReturn:
@@ -768,9 +778,9 @@ final class Cola: ObservableObject {
         let pausadas = elementos.filter { $0.etapa == .pausada || $0.etapa == .detenida }.count
         // A playlist still being read is not counted yet; one that failed is.
         let total = elementos.filter { !($0.esLectura && $0.etapa.activa) }.count + limpias
-        var t = tr("\(listas) de \(total) listas", "\(listas) of \(total) done")
-        if fallos > 0 { t += " · " + tr("\(fallos) con error", "\(fallos) failed") }
-        if pausadas > 0 { t += " · " + tr("\(pausadas) en pausa", "\(pausadas) paused") }
+        var t = tr("\(listas) de \(total) listas", "\(listas) of \(total) done", "\(total) 件中 \(listas) 件完了")
+        if fallos > 0 { t += " · " + tr("\(fallos) con error", "\(fallos) failed", "\(fallos) 件エラー") }
+        if pausadas > 0 { t += " · " + tr("\(pausadas) en pausa", "\(pausadas) paused", "\(pausadas) 件一時停止中") }
         return t
     }
 
@@ -803,7 +813,7 @@ final class Cola: ObservableObject {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.directoryURL = destino
-        panel.prompt = tr("Elegir", "Choose")
+        panel.prompt = tr("Elegir", "Choose", "選択")
         if panel.runModal() == .OK, let url = panel.url { destino = url }
     }
 
@@ -1018,7 +1028,7 @@ final class Cola: ObservableObject {
             try FileManager.default.createDirectory(at: e.destino, withIntermediateDirectories: true)
         } catch {
             actual = nil
-            e.etapa = .fallo(tr("No se pudo crear la carpeta: ", "Could not create the folder: ") + error.localizedDescription)
+            e.etapa = .fallo(tr("No se pudo crear la carpeta: ", "Could not create the folder: ", "フォルダーを作成できませんでした: ") + error.localizedDescription)
             siguiente()
             return
         }
@@ -1073,7 +1083,7 @@ final class Cola: ObservableObject {
             try p.run()
             proceso = p
         } catch {
-            e.etapa = .fallo(tr("No se pudo arrancar yt-dlp: ", "Could not start yt-dlp: ") + error.localizedDescription)
+            e.etapa = .fallo(tr("No se pudo arrancar yt-dlp: ", "Could not start yt-dlp: ", "yt-dlp を起動できませんでした: ") + error.localizedDescription)
             actual = nil
             siguiente()
         }
@@ -1113,7 +1123,7 @@ final class Cola: ObservableObject {
             // The yt-dlp error message was already recorded by procesar(_:).
         } else {
             e.etapa = .fallo(e.ultimoError
-                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo)."))
+                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo).", "yt-dlp がコード \(codigo) で終了しました。"))
         }
         siguiente()
     }
@@ -1161,7 +1171,7 @@ final class Cola: ObservableObject {
             try p.run()
             lecturas[ObjectIdentifier(fila)] = p
         } catch {
-            fila.etapa = .fallo(tr("No se pudo arrancar yt-dlp: ", "Could not start yt-dlp: ") + error.localizedDescription)
+            fila.etapa = .fallo(tr("No se pudo arrancar yt-dlp: ", "Could not start yt-dlp: ", "yt-dlp を起動できませんでした: ") + error.localizedDescription)
         }
     }
 
@@ -1176,11 +1186,11 @@ final class Cola: ObservableObject {
             }
             let linea = error.components(separatedBy: "\n").last { $0.hasPrefix("ERROR:") }
             fila.etapa = .fallo(linea.map(mensajeDeError)
-                                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo)."))
+                                ?? tr("yt-dlp terminó con el código \(codigo).", "yt-dlp exited with code \(codigo).", "yt-dlp がコード \(codigo) で終了しました。"))
             return
         }
         guard let raiz = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any] else {
-            fila.etapa = .fallo(tr("No se pudo leer la lista.", "Could not read the playlist."))
+            fila.etapa = .fallo(tr("No se pudo leer la lista.", "Could not read the playlist.", "プレイリストを読み込めませんでした。"))
             return
         }
         guard raiz["_type"] as? String == "playlist", let entradas = raiz["entries"] as? [[String: Any]] else {
@@ -1211,12 +1221,12 @@ final class Cola: ObservableObject {
                                              miniatura: urlRemota(miniaturas?.last?["url"] as? String))))
         }
         guard !videos.isEmpty else {
-            fila.etapa = .fallo(tr("La lista está vacía.", "The playlist is empty."))
+            fila.etapa = .fallo(tr("La lista está vacía.", "The playlist is empty.", "プレイリストが空です。"))
             return
         }
         if videos.count > Cola.listaGrande {
             esperaGrande = (fila, nombre, videos)
-            confirmacionGrande = ListaGrande(nombre: nombre.isEmpty ? tr("Lista", "Playlist") : nombre, cantidad: videos.count)
+            confirmacionGrande = ListaGrande(nombre: nombre.isEmpty ? tr("Lista", "Playlist", "プレイリスト") : nombre, cantidad: videos.count)
             return
         }
         expandir(fila, nombre: nombre, videos: videos)
@@ -1231,7 +1241,7 @@ final class Cola: ObservableObject {
             let e = Elemento(enlace: v.enlace, formato: fila.formato, destino: carpeta)
             let numero = String(i + 1)
             e.prefijo = String(repeating: "0", count: max(0, ancho - numero.count)) + numero
-            e.nombreLista = nombre.isEmpty ? tr("Lista", "Playlist") : nombre
+            e.nombreLista = nombre.isEmpty ? tr("Lista", "Playlist", "プレイリスト") : nombre
             e.posicion = "\(i + 1)/\(videos.count)"
             e.info = v.info
             e.instrumental = Filtro.esInstrumental(v.info.titulo)
@@ -1384,7 +1394,7 @@ struct TarjetaPregunta: View {
                         Text(detalle).font(.caption).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
                     }
                     HStack(spacing: 8) {
-                        Button(tr("Cancelar", "Cancel"), action: alCancelar)
+                        Button(tr("Cancelar", "Cancel", "キャンセル"), action: alCancelar)
                             .keyboardShortcut(.cancelAction)
                         Spacer(minLength: 0)
                         if let secundario, let alSecundario {
@@ -1478,38 +1488,38 @@ struct FilaElemento: View {
             switch e.etapa {
             case .enCola:
                 if !e.esLectura {
-                    BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause")) { cola.pausar(e) }
+                    BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause", "一時停止")) { cola.pausar(e) }
                 }
-                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Quitar de la cola", "Remove from queue")) { cola.quitar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Quitar de la cola", "Remove from queue", "キューから削除")) { cola.quitar(e) }
             case .leyendo:
-                BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist")) { cola.cancelar(e) }
+                BotonIcono(simbolo: "stop.circle", ayuda: tr("Dejar de leer la lista", "Stop reading the playlist", "プレイリストの読み込みを中止")) { cola.cancelar(e) }
             case .preparando, .bajando, .procesando, .esperando:
-                BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause")) { cola.pausar(e) }
-                BotonIcono(simbolo: "stop.circle", ayuda: tr("Cancelar esta descarga", "Cancel this download")) { cola.cancelar(e) }
+                BotonIcono(simbolo: "pause.circle", ayuda: tr("Pausar", "Pause", "一時停止")) { cola.pausar(e) }
+                BotonIcono(simbolo: "stop.circle", ayuda: tr("Cancelar esta descarga", "Cancel this download", "このダウンロードをキャンセル")) { cola.cancelar(e) }
             case .detenida:
-                BotonIcono(simbolo: "play.circle", ayuda: tr("Seguir", "Resume"), color: acento) { cola.reanudar(e) }
-                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list")) { cola.quitar(e) }
+                BotonIcono(simbolo: "play.circle", ayuda: tr("Seguir", "Resume", "再開"), color: acento) { cola.reanudar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list", "一覧から削除")) { cola.quitar(e) }
             case .pausada:
-                BotonIcono(simbolo: "arrow.down.circle", ayuda: tr("Descargar igual", "Download anyway"), color: acento) {
+                BotonIcono(simbolo: "arrow.down.circle", ayuda: tr("Descargar igual", "Download anyway", "それでもダウンロード"), color: acento) {
                     cola.reintentar(e)
                 }
-                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list")) { cola.quitar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list", "一覧から削除")) { cola.quitar(e) }
             case .lista:
                 if let archivo = e.archivo {
-                    BotonIcono(simbolo: "folder", ayuda: tr("Mostrar en Finder", "Show in Finder")) {
+                    BotonIcono(simbolo: "folder", ayuda: tr("Mostrar en Finder", "Show in Finder", "Finder で表示")) {
                         NSWorkspace.shared.activateFileViewerSelecting([archivo])
                     }
-                    BotonIcono(simbolo: "play.circle.fill", ayuda: tr("Abrir", "Open"), color: acento) {
+                    BotonIcono(simbolo: "play.circle.fill", ayuda: tr("Abrir", "Open", "開く"), color: acento) {
                         NSWorkspace.shared.open(archivo)
                     }
                 } else {
                     Image(systemName: "checkmark.circle.fill").font(.system(size: 17)).foregroundStyle(.green)
                 }
             case .cancelada, .fallo:
-                BotonIcono(simbolo: "arrow.clockwise.circle", ayuda: tr("Probar de nuevo", "Try again"), color: acento) {
+                BotonIcono(simbolo: "arrow.clockwise.circle", ayuda: tr("Probar de nuevo", "Try again", "再試行"), color: acento) {
                     cola.reintentar(e)
                 }
-                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list")) { cola.quitar(e) }
+                BotonIcono(simbolo: "xmark.circle", ayuda: tr("Sacar de la lista", "Remove from list", "一覧から削除")) { cola.quitar(e) }
             }
         }
     }
@@ -1566,9 +1576,9 @@ struct Ventana: View {
                     if !cola.elementos.isEmpty { listaDeLaCola }
                     Text(versionYtDlp == versionYtDlpIncluida
                          ? tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), incluido en la app",
-                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app")
+                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), bundled with the app", "Haul \(versionHaul) · エンジン: yt-dlp \(versionYtDlp) (アプリに同梱)")
                          : tr("Haul \(versionHaul) · Motor: yt-dlp \(versionYtDlp), actualizado por Haul",
-                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), updated by Haul"))
+                              "Haul \(versionHaul) · Engine: yt-dlp \(versionYtDlp), updated by Haul", "Haul \(versionHaul) · エンジン: yt-dlp \(versionYtDlp) (Haul が更新)"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -1617,9 +1627,9 @@ struct Ventana: View {
     private var tituloDelBoton: String {
         let n = cola.detectados.count
         if cola.ocupada && n > 0 {
-            return n == 1 ? tr("Agregar a la cola", "Add to queue") : tr("Agregar \(n) a la cola", "Add \(n) to queue")
+            return n == 1 ? tr("Agregar a la cola", "Add to queue", "キューに追加") : tr("Agregar \(n) a la cola", "Add \(n) to queue", "\(n) 件をキューに追加")
         }
-        return n > 1 ? tr("Descargar \(n) enlaces", "Download \(n) links") : tr("Descargar", "Download")
+        return n > 1 ? tr("Descargar \(n) enlaces", "Download \(n) links", "\(n) 件をダウンロード") : tr("Descargar", "Download", "ダウンロード")
     }
 
     private var encabezado: some View {
@@ -1639,14 +1649,14 @@ struct Ventana: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help(tr("Apariencia y color", "Appearance and colour"))
-            .accessibilityLabel(tr("Apariencia y color", "Appearance and colour"))
+            .help(tr("Apariencia y color", "Appearance and colour", "外観と色"))
+            .accessibilityLabel(tr("Apariencia y color", "Appearance and colour", "外観と色"))
             Button { VentanaAcercaDe.mostrar() } label: {
                 Image(systemName: "info.circle").font(.system(size: 17))
             }
             .buttonStyle(.borderless)
-            .help(tr("Acerca de Haul", "About Haul"))
-            .accessibilityLabel(tr("Acerca de Haul", "About Haul"))
+            .help(tr("Acerca de Haul", "About Haul", "Haul について"))
+            .accessibilityLabel(tr("Acerca de Haul", "About Haul", "Haul について"))
         }
     }
 
@@ -1654,7 +1664,7 @@ struct Ventana: View {
         Tarjeta {
             Label {
                 Text(LocalizedStringKey(tr("Falta Python 3 de Homebrew. Abrí la Terminal y escribí: **brew install python deno ffmpeg**",
-                                           "Homebrew's Python 3 is missing. Open Terminal and run: **brew install python deno ffmpeg**")))
+                                           "Homebrew's Python 3 is missing. Open Terminal and run: **brew install python deno ffmpeg**", "Homebrew の Python 3 がありません。ターミナルを開いて次を実行してください: **brew install python deno ffmpeg**")))
             } icon: {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
             }
@@ -1671,7 +1681,7 @@ struct Ventana: View {
                         .padding(.top, 1)
                     ZStack(alignment: .topLeading) {
                         if cola.texto.isEmpty {
-                            Text(tr("Pega uno o varios enlaces, uno por línea", "Paste one or more links, one per line"))
+                            Text(tr("Pega uno o varios enlaces, uno por línea", "Paste one or more links, one per line", "リンクを貼り付けてください (1 行に 1 つ、複数可)"))
                                 .font(.system(size: 14))
                                 .foregroundStyle(.tertiary)
                                 .padding(.leading, 5)
@@ -1692,10 +1702,10 @@ struct Ventana: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if !cola.texto.isEmpty {
-                        Button(tr("Borrar", "Clear")) { cola.texto = "" }.controlSize(.small)
+                        Button(tr("Borrar", "Clear", "クリア")) { cola.texto = "" }.controlSize(.small)
                     }
                     Button { cola.tomarDelPortapapeles(forzar: true) } label: {
-                        Label(tr("Pegar", "Paste"), systemImage: "doc.on.clipboard")
+                        Label(tr("Pegar", "Paste", "貼り付け"), systemImage: "doc.on.clipboard")
                     }
                     .controlSize(.small)
                 }
@@ -1706,10 +1716,10 @@ struct Ventana: View {
     private var contador: String {
         let n = cola.detectados.count
         switch n {
-        case 0: return cola.texto.isEmpty ? tr("⌘↩ para descargar", "⌘↩ to download")
-                                          : tr("No veo ningún enlace", "No links found")
-        case 1: return tr("1 enlace · ⌘↩ para descargar", "1 link · ⌘↩ to download")
-        default: return tr("\(n) enlaces · ⌘↩ para descargar", "\(n) links · ⌘↩ to download")
+        case 0: return cola.texto.isEmpty ? tr("⌘↩ para descargar", "⌘↩ to download", "⌘↩ でダウンロード")
+                                          : tr("No veo ningún enlace", "No links found", "リンクが見つかりません")
+        case 1: return tr("1 enlace · ⌘↩ para descargar", "1 link · ⌘↩ to download", "リンク 1 件 · ⌘↩ でダウンロード")
+        default: return tr("\(n) enlaces · ⌘↩ para descargar", "\(n) links · ⌘↩ to download", "リンク \(n) 件 · ⌘↩ でダウンロード")
         }
     }
 
@@ -1725,17 +1735,17 @@ struct Ventana: View {
     private var opciones: some View {
         Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
             GridRow {
-                Toggle(tr("Descargar listas enteras", "Download whole playlists"), isOn: $cola.listaEntera)
+                Toggle(tr("Descargar listas enteras", "Download whole playlists", "プレイリスト全体をダウンロード"), isOn: $cola.listaEntera)
                     .help(tr("Activado, un video que está dentro de una lista trae la lista entera; desactivado, pregunta cada vez",
-                             "When on, a video that is part of a playlist brings the whole playlist; when off, it asks every time"))
-                Toggle(tr("Descargar instrumentales", "Download instrumentals"), isOn: $cola.instrumentales)
+                             "When on, a video that is part of a playlist brings the whole playlist; when off, it asks every time", "オンにすると、プレイリストに含まれる動画のリンクからプレイリスト全体を取り込みます。オフにすると、毎回確認します"))
+                Toggle(tr("Descargar instrumentales", "Download instrumentals", "インストゥルメンタルもダウンロード"), isOn: $cola.instrumentales)
                     .help(tr("Desactivado, los videos con «instrumental» en el título esperan en pausa",
-                             "When off, videos with \"instrumental\" in the title wait, paused"))
+                             "When off, videos with \"instrumental\" in the title wait, paused", "オフにすると、タイトルに「instrumental」を含む動画は一時停止の状態で待機します"))
             }
             GridRow {
-                Toggle(tr("Limpiar terminadas automáticamente", "Clear finished automatically"), isOn: $cola.limpiarSola)
+                Toggle(tr("Limpiar terminadas automáticamente", "Clear finished automatically", "完了したダウンロードを自動的に消去"), isOn: $cola.limpiarSola)
                     .help(tr("Activado, cada descarga terminada sale sola de la lista",
-                             "When on, every finished download leaves the list by itself"))
+                             "When on, every finished download leaves the list by itself", "オンにすると、完了したダウンロードは一覧から自動的に消えます"))
                     .gridCellColumns(2)
             }
         }
@@ -1750,17 +1760,17 @@ struct Ventana: View {
                     .font(.system(size: 16))
                     .foregroundStyle(degrade)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(tr("Guardar en", "Save to")).font(.caption).foregroundStyle(.secondary)
-                    Text(cola.destino.lastPathComponent == "Downloads" ? tr("Descargas", "Downloads") : cola.destino.lastPathComponent)
+                    Text(tr("Guardar en", "Save to", "保存先")).font(.caption).foregroundStyle(.secondary)
+                    Text(cola.destino.lastPathComponent == "Downloads" ? tr("Descargas", "Downloads", "ダウンロード") : cola.destino.lastPathComponent)
                         .font(.system(size: 14, weight: .medium))
                         .help(cola.destino.path)
                 }
                 Spacer()
-                Button(tr("Cambiar…", "Change…")) { cola.elegirCarpeta() }
+                Button(tr("Cambiar…", "Change…", "変更…")) { cola.elegirCarpeta() }
                 Button { NSWorkspace.shared.open(cola.destino) } label: {
                     Image(systemName: "arrow.up.forward.app")
                 }
-                .help(tr("Abrir la carpeta en Finder", "Open the folder in Finder"))
+                .help(tr("Abrir la carpeta en Finder", "Open the folder in Finder", "Finder でフォルダーを開く"))
             }
         }
     }
@@ -1770,23 +1780,23 @@ struct Ventana: View {
         if let enlace = cola.preguntaLista {
             TarjetaPregunta(
                 simbolo: "list.bullet.rectangle.portrait",
-                titulo: tr("Este video está dentro de una lista", "This video is part of a playlist"),
+                titulo: tr("Este video está dentro de una lista", "This video is part of a playlist", "この動画はプレイリストに含まれています"),
                 texto: tr("Puedes descargar solo este video o la lista entera. Con la lista entera, cada video entra a la "
                           + "cola por separado y se guarda en una carpeta con el nombre de la lista, numerado en orden.",
                           "You can download just this video or the whole playlist. With the whole playlist, each video "
-                          + "joins the queue on its own and is saved in a folder named after the playlist, in order."),
+                          + "joins the queue on its own and is saved in a folder named after the playlist, in order.", "この動画だけ、またはプレイリスト全体をダウンロードできます。プレイリスト全体の場合、各動画は個別にキューに追加され、プレイリスト名のフォルダーに番号順で保存されます。"),
                 detalle: enlace,
-                principal: tr("La lista entera", "The whole playlist"), alPrincipal: { cola.responderLista(true) },
-                secundario: tr("Solo este video", "Only this video"), alSecundario: { cola.responderLista(false) },
+                principal: tr("La lista entera", "The whole playlist", "プレイリスト全体"), alPrincipal: { cola.responderLista(true) },
+                secundario: tr("Solo este video", "Only this video", "この動画のみ"), alSecundario: { cola.responderLista(false) },
                 alCancelar: { cola.responderLista(nil) })
         } else if let l = cola.confirmacionGrande {
             TarjetaPregunta(
                 simbolo: "rectangle.stack",
-                titulo: tr("Una lista grande", "A large playlist"),
+                titulo: tr("Una lista grande", "A large playlist", "大きなプレイリスト"),
                 texto: tr("«\(l.nombre)» tiene \(l.cantidad) videos. ¿Los agrego todos a la cola?",
-                          "\"\(l.nombre)\" has \(l.cantidad) videos. Add them all to the queue?"),
+                          "\"\(l.nombre)\" has \(l.cantidad) videos. Add them all to the queue?", "「\(l.nombre)」には \(l.cantidad) 本の動画があります。すべてキューに追加しますか？"),
                 detalle: nil,
-                principal: tr("Agregar \(l.cantidad)", "Add \(l.cantidad)"), alPrincipal: { cola.responderGrande(true) },
+                principal: tr("Agregar \(l.cantidad)", "Add \(l.cantidad)", "\(l.cantidad) 件を追加"), alPrincipal: { cola.responderGrande(true) },
                 secundario: nil, alSecundario: nil,
                 alCancelar: { cola.responderGrande(false) })
         }
@@ -1795,20 +1805,20 @@ struct Ventana: View {
     private var listaDeLaCola: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(tr("Cola", "Queue")).font(.headline)
+                Text(tr("Cola", "Queue", "キュー")).font(.headline)
                 Text(cola.resumen).font(.callout).foregroundStyle(.secondary)
                 Spacer()
                 HStack(spacing: 6) {
                     if cola.hayFallos {
-                        Button(tr("Reintentar todas", "Retry all")) { cola.reintentarFallidas() }
+                        Button(tr("Reintentar todas", "Retry all", "すべて再試行")) { cola.reintentarFallidas() }
                     }
                     if cola.enPausa {
-                        Button(tr("Reanudar todo", "Resume all")) { cola.reanudarTodo() }
+                        Button(tr("Reanudar todo", "Resume all", "すべて再開")) { cola.reanudarTodo() }
                     } else if cola.hayPendientes {
-                        Button(tr("Pausar todo", "Pause all")) { cola.pausarTodo() }
+                        Button(tr("Pausar todo", "Pause all", "すべて一時停止")) { cola.pausarTodo() }
                     }
                     if cola.ocupada || cola.enPausa {
-                        Button(tr("Cancelar todo", "Cancel all"), role: .cancel) { cola.cancelarTodo() }
+                        Button(tr("Cancelar todo", "Cancel all", "すべてキャンセル"), role: .cancel) { cola.cancelarTodo() }
                     }
                 }
                 .controlSize(.small)
@@ -1861,49 +1871,49 @@ struct AcercaDe: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Haul").font(.system(size: 26, weight: .bold, design: .rounded))
                     Text(tr("Versión \(versionHaul) para macOS · yt-dlp \(versionYtDlp)",
-                            "Version \(versionHaul) for macOS · yt-dlp \(versionYtDlp)"))
+                            "Version \(versionHaul) for macOS · yt-dlp \(versionYtDlp)", "macOS 版 バージョン \(versionHaul) · yt-dlp \(versionYtDlp)"))
                         .font(.callout).foregroundStyle(.secondary)
                 }
             }
             .padding(.bottom, 4)
-            seccion(tr("El nombre", "The name"), tr(
+            seccion(tr("El nombre", "The name", "名前の由来"), tr(
                 "«Haul» es una palabra inglesa: quiere decir acarrear algo pesado y también la carga que uno se trae de "
                 + "vuelta, como la pesca de un día. Eso hace la app, con yt-dlp de motor: se trae "
                 + "la carga a casa.",
                 "To haul is to carry something heavy, and a haul is the load you bring back, like a day's catch. That is "
-                + "what the app does: with yt-dlp as its engine, it brings the load home."))
+                + "what the app does: with yt-dlp as its engine, it brings the load home.", "「haul」は英語で、重いものを運ぶこと、そして持ち帰る獲物 (一日の漁の成果のようなもの) を意味します。このアプリがしているのはまさにそれで、yt-dlp をエンジンにして獲物を家まで運びます。"))
             Text(tr("Ícono: una flecha de descarga que entra en una bandeja, dibujada para Haul (2026), bajo la GPL-2.0 como el resto.",
-                    "Icon: a download arrow going into a tray, drawn for Haul (2026), under the GPL-2.0 like the rest."))
+                    "Icon: a download arrow going into a tray, drawn for Haul (2026), under the GPL-2.0 like the rest.", "アイコン: トレイに入るダウンロードの矢印。Haul のために描いたもの (2026 年) で、ほかの部分と同じく GPL-2.0 で提供しています。"))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            seccion(tr("Autor", "Author"), "Gabriel Castiglia · © 2026")
-            seccion(tr("Licencia", "License"), tr(
+            seccion(tr("Autor", "Author", "作者"), "Gabriel Castiglia · © 2026")
+            seccion(tr("Licencia", "License", "ライセンス"), tr(
                 "Software libre bajo la Licencia Pública General de GNU, versión 2 (GPL-2.0-only), la misma del núcleo "
                 + "Linux. La copia incluida de yt-dlp conserva sus propias licencias (Unlicense y las de sus componentes).",
                 "Free software under the GNU General Public License, version 2 (GPL-2.0-only), the same license as the "
-                + "Linux kernel. The bundled copy of yt-dlp keeps its own licenses (the Unlicense and those of its components)."))
+                + "Linux kernel. The bundled copy of yt-dlp keeps its own licenses (the Unlicense and those of its components).", "GNU 一般公衆利用許諾書 バージョン 2 (GPL-2.0-only) に基づくフリー ソフトウェアです。Linux カーネルと同じライセンスです。同梱の yt-dlp は独自のライセンス (Unlicense およびその構成要素のライセンス) を保持しています。"))
             VStack(alignment: .leading, spacing: 4) {
-                Text(tr("Código fuente", "Source code")).font(.headline)
+                Text(tr("Código fuente", "Source code", "ソース コード")).font(.headline)
                 Link(String(repositorio.dropFirst("https://".count)), destination: URL(string: repositorio)!)
-                Text(tr("Versión para Windows:", "Windows version:")).font(.caption).foregroundStyle(.secondary)
+                Text(tr("Versión para Windows:", "Windows version:", "Windows 版:")).font(.caption).foregroundStyle(.secondary)
                     .padding(.top, 4)
                 Link(String(repositorioWindows.dropFirst("https://".count)), destination: URL(string: repositorioWindows)!)
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text(tr("Versiones nuevas", "New versions")).font(.headline)
+                Text(tr("Versiones nuevas", "New versions", "新しいバージョン")).font(.headline)
                 Toggle(tr("Buscar versiones nuevas de Haul una vez al día (se instalan solas si lo pides)",
-                          "Look for new versions of Haul once a day (they install themselves when you ask)"), isOn: $buscarVersiones)
+                          "Look for new versions of Haul once a day (they install themselves when you ask)", "Haul の新しいバージョンを 1 日 1 回確認する (指示すると自動でインストールされます)"), isOn: $buscarVersiones)
                 Toggle(tr("Actualizar yt-dlp solo (desde sus versiones oficiales en GitHub, una vez al día)",
-                          "Update yt-dlp by itself (from its official releases on GitHub, once a day)"), isOn: $actualizarYtDlp)
+                          "Update yt-dlp by itself (from its official releases on GitHub, once a day)", "yt-dlp を自動で更新する (GitHub の公式リリースから 1 日 1 回)"), isOn: $actualizarYtDlp)
                 HStack(spacing: 10) {
-                    Button(tr("Actualizar yt-dlp", "Update yt-dlp")) { busqueda.actualizarYtDlp() }
+                    Button(tr("Actualizar yt-dlp", "Update yt-dlp", "yt-dlp を更新")) { busqueda.actualizarYtDlp() }
                         .disabled(busqueda.buscando)
                     if !busqueda.estado.isEmpty { Text(busqueda.estado).font(.caption).foregroundStyle(.secondary) }
                 }
             }
             HStack {
-                Button(tr("Buscar actualizaciones", "Check for updates")) { SelfUpdate.shared.check(interactive: true) }
+                Button(tr("Buscar actualizaciones", "Check for updates", "更新を確認")) { SelfUpdate.shared.check(interactive: true) }
                 Spacer()
-                Button(tr("Cerrar", "Close")) { VentanaAcercaDe.cerrar() }
+                Button(tr("Cerrar", "Close", "閉じる")) { VentanaAcercaDe.cerrar() }
                     .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 8)
@@ -1937,21 +1947,21 @@ enum VentanaAcercaDe {
             w.isReleasedWhenClosed = false
             ventana = w
         }
-        ventana?.title = tr("Acerca de Haul", "About Haul")
+        ventana?.title = tr("Acerca de Haul", "About Haul", "Haul について")
         ventana?.center()
         ventana?.makeKeyAndOrderFront(nil)
     }
 
     static func cerrar() { ventana?.close() }
 
-    static func retitular() { ventana?.title = tr("Acerca de Haul", "About Haul") }
+    static func retitular() { ventana?.title = tr("Acerca de Haul", "About Haul", "Haul について") }
 }
 
 // "About Haul" in the app menu opens the same window as the button.
 struct MenuAcercaDe: View {
     @ObservedObject private var ajustes = Ajustes.shared
     var body: some View {
-        Button(tr("Acerca de Haul", "About Haul")) { VentanaAcercaDe.mostrar() }
+        Button(tr("Acerca de Haul", "About Haul", "Haul について")) { VentanaAcercaDe.mostrar() }
     }
 }
 
@@ -1963,12 +1973,12 @@ final class Busqueda: ObservableObject {
 
     func actualizarYtDlp() {
         buscando = true
-        estado = tr("Consultando GitHub…", "Asking GitHub…")
+        estado = tr("Consultando GitHub…", "Asking GitHub…", "GitHub に問い合わせています…")
         Task { @MainActor in
             do {
                 let r = try await MotorYtDlp.actualizar()
-                estado = r.nueva ? tr("yt-dlp \(r.version) instalado: lo usan las próximas descargas.", "yt-dlp \(r.version) installed: the next downloads use it.")
-                                 : tr("yt-dlp \(r.version) es la última versión.", "yt-dlp \(r.version) is the latest version.")
+                estado = r.nueva ? tr("yt-dlp \(r.version) instalado: lo usan las próximas descargas.", "yt-dlp \(r.version) installed: the next downloads use it.", "yt-dlp \(r.version) をインストールしました。次のダウンロードから使われます。")
+                                 : tr("yt-dlp \(r.version) es la última versión.", "yt-dlp \(r.version) is the latest version.", "yt-dlp \(r.version) は最新バージョンです。")
             } catch {
                 estado = error.localizedDescription
             }
@@ -1982,14 +1992,14 @@ struct MenuApariencia: View {
     @ObservedObject private var ajustes = Ajustes.shared
     @ObservedObject private var tema = Tema.shared
     var body: some View {
-        Picker(tr("Apariencia", "Appearance"), selection: $tema.apariencia) {
-            Text(tr("Como macOS", "As macOS")).tag("auto")
-            Text(tr("Claro", "Light")).tag("light")
-            Text(tr("Oscuro", "Dark")).tag("dark")
+        Picker(tr("Apariencia", "Appearance", "外観"), selection: $tema.apariencia) {
+            Text(tr("Como macOS", "As macOS", "macOS に合わせる")).tag("auto")
+            Text(tr("Claro", "Light", "ライト")).tag("light")
+            Text(tr("Oscuro", "Dark", "ダーク")).tag("dark")
         }
         .pickerStyle(.inline)
         Divider()
-        Picker(tr("Color", "Colour"), selection: $tema.color) {
+        Picker(tr("Color", "Colour", "色"), selection: $tema.color) {
             ForEach(coloresTema) { c in
                 Text(c.nombre).tag(c.clave)
             }
@@ -2028,7 +2038,7 @@ final class Delegado: NSObject, NSApplicationDelegate {
         up.appName = "Haul"
         up.repo = "Gabriel-Castiglia/haul"
         up.version = versionHaul
-        up.language = { Ajustes.shared.idioma == .es ? "es" : "en" }
+        up.language = { Ajustes.shared.idioma.rawValue }
         up.dailyCheckOn = { UserDefaults.standard.object(forKey: "buscarVersiones") as? Bool ?? true }
         up.readyToQuit = { await Cola.principal?.listaParaActualizar() ?? true }
         up.cleanUpAtStart()
@@ -2060,9 +2070,9 @@ struct HaulApp: App {
             .windowResizability(.contentMinSize)
             .commands {
                 CommandGroup(replacing: .appInfo) { MenuAcercaDe() }
-                CommandMenu(tr("Apariencia", "Appearance")) { MenuApariencia() }
-                CommandMenu(tr("Idioma", "Language")) {
-                    Picker(tr("Idioma", "Language"), selection: $ajustes.idioma) {
+                CommandMenu(tr("Apariencia", "Appearance", "外観")) { MenuApariencia() }
+                CommandMenu(tr("Idioma", "Language", "言語")) {
+                    Picker(tr("Idioma", "Language", "言語"), selection: $ajustes.idioma) {
                         ForEach(Idioma.allCases) { Text($0.nombre).tag($0) }
                     }
                     .pickerStyle(.inline)

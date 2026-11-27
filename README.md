@@ -5,9 +5,9 @@
 
 <p align="center"><img src="docs/images/main-dark-en.png" width="420" alt="The Haul window, dark"></p>
 
-Gabriel Castiglia · November 27, 2026 · version 1.7.0 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
+Gabriel Castiglia · November 27, 2026 · version 1.8.0 · GPL-2.0-only · built and tested with yt-dlp 2026.11.23
 
-English · [Español](README.es.md)
+English · [Español](README.es.md) · [日本語](README.ja.md)
 
 Windows version: <https://github.com/Gabriel-Castiglia/haul-windows>
 
@@ -18,7 +18,7 @@ PDF manual: [`docs/Haul-manual-en.pdf`](docs/Haul-manual-en.pdf)
 Haul is a macOS app that works as a front end for
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). The app builds the command, shows the
 progress and manages a download queue. The actual work is done by yt-dlp, bundled with the app at
-a fixed, verified version, and by ffmpeg, installed with Homebrew. The interface is available in English and Spanish, selectable from the Language
+a fixed, verified version, and by ffmpeg, installed with Homebrew. The interface is available in English, Spanish and Japanese, selectable from the Language
 menu; it starts in English on first launch and remembers the choice. The window can be light, dark or
 follow macOS, in one of twelve colours.
 
@@ -37,7 +37,7 @@ installed by hand.
 
 Download `Haul-<version>.pkg` from the
 [latest release](https://github.com/Gabriel-Castiglia/haul/releases/latest) and open it. The installer is in
-English or Spanish, following the language of the Mac. It checks that Homebrew is installed and stops
+English, Spanish or Japanese, following the language of the Mac. It checks that Homebrew is installed and stops
 with a message if it is not; then it installs `Haul.app` in `/Applications`, quitting a running copy
 first, and installs Python, deno and ffmpeg with Homebrew or upgrades them if they are already there.
 The first time that step can take a few minutes. Installing a newer package updates Haul and keeps its
@@ -49,7 +49,7 @@ The package is not signed with an Apple Developer ID, so the first time macOS re
 `SHA256SUMS.txt` file of each release lets you check the download first:
 
 ```
-shasum -a 256 Haul-1.7.0.pkg
+shasum -a 256 Haul-1.8.0.pkg
 ```
 
 To uninstall, quit Haul and drag `/Applications/Haul.app` to the Trash. Python, deno and ffmpeg stay,
@@ -152,7 +152,7 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 
 | Path | Contents |
 |---|---|
-| `fuentes/Haul.swift` | App source code (SwiftUI, a single file) |
+| `fuentes/Haul.swift` | App source code (SwiftUI) |
 | `assets/icon.svg` | The drawing of the icon (made in its twelve colours by the author's icon tool, the same for the Windows version) |
 | `icono/icono-1024.png` | The app icon, on its default orange, source for every size |
 | `icono/accents/` | The icon on each colour, for the Dock |
@@ -160,15 +160,15 @@ row per post, from the oldest to the newest, so a series keeps its episode order
 | `scripts/instalar.sh` | Dependencies, build and installation |
 | `scripts/compilar.sh` | Build and signing into `build/` |
 | `scripts/paquete.sh` | Builds the installer package `build/Haul-<version>.pkg` |
-| `instalador/` | Package definition: `Distribution.xml`, the scripts that quit Haul and install the Homebrew packages, and the pages in English and Spanish |
+| `instalador/` | Package definition: `Distribution.xml`, the scripts that quit Haul and install the Homebrew packages, and the pages in English, Spanish and Japanese |
 | `scripts/firma.sh` | Local signing identity (sourced by `compilar.sh`) |
 | `scripts/manual.sh` | Builds the PDF manuals from the READMEs |
 | `scripts/actualizar-yt-dlp.sh` | Replaces the bundled yt-dlp with another verified release |
 | `plugins/haul/` | Haul's own yt-dlp extractor plugin, for links the bundled version does not handle |
 | `vendor/yt-dlp/` | Bundled copy of yt-dlp 2026.11.23, with sources, checksums, signature and licenses |
-| `docs/Haul-manual-en.pdf`, `docs/Haul-manual-es.pdf` | PDF manuals, in English and Spanish |
+| `docs/Haul-manual-en.pdf`, `docs/Haul-manual-es.pdf`, `docs/Haul-manual-ja.pdf` | PDF manuals, in English, Spanish and Japanese |
 | `docs/manual.css` | Stylesheet for the manuals |
-| `README.md`, `README.es.md` | This documentation, in English and Spanish |
+| `README.md`, `README.es.md`, `README.ja.md` | This documentation, in English, Spanish and Japanese |
 | `CHANGELOG.md` | Version history |
 
 The `build/` folder is generated at build time and is not part of the repository.
@@ -197,7 +197,7 @@ app reads the clipboard only when Paste is pressed, and shows no prompt when it 
 
 The Appearance menu, also behind the palette button of the window, chooses light, dark or as macOS, and
 one of twelve colours. The colour chosen is used for the buttons, check boxes and selected items, and for
-the icon in the Dock while Haul is open: the eagle flies on a tile of that colour. The icon in the
+the icon in the Dock while Haul is open: the icon's tile takes that colour. The icon in the
 Finder and in Launchpad stays orange, because changing it would break the app's signature. A Haul that
 already ran keeps the dark window it had; a new installation follows macOS.
 
@@ -278,6 +278,11 @@ tab-separated format:
 
 Paused instrumentals are held back with `--match-filters`, so yt-dlp downloads nothing until they
 are allowed.
+
+yt-dlp always runs with `--ignore-config` and reads no configuration file, so a `yt-dlp.conf` left in the download
+folder cannot add options such as `--exec`. It loads only Haul's own plugins (`--no-plugin-dirs`, then Haul's
+`plugins` folder with `--plugin-dirs`). As a consequence, the user's own yt-dlp configuration files are not applied
+either. Thumbnails are shown only from `http` and `https` addresses.
 
 Some links fail inside yt-dlp itself, its latest release included: a video page that now asks for an
 account although its embedded player does not, and pages whose data moved to a different place.

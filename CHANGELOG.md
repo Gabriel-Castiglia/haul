@@ -2,6 +2,23 @@
 
 All notable changes to Haul. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 1.8.0 - 2026-11-27
+
+What Haul 1.8.0 for Windows brought, on the Mac.
+
+### Added
+
+- **Japanese interface**: Haul speaks Japanese too (日本語 in the Language menu), with the texts of Haul for Windows
+  where both have the same one. The installer pages are in Japanese on a Mac in Japanese.
+- The README and the PDF manual are also in Japanese (`README.ja.md`, `docs/Haul-manual-ja.pdf`), and the pictures of
+  the window are in the three languages.
+
+### Changed
+
+- "Video", the name of the format, is translated like the rest of the window.
+- The README describes the safeguards of 1.7.0 (`--ignore-config`, only Haul's plugins) and no longer mentions the
+  eagle of the old icon.
+
 ## 1.7.0 - 2026-11-27
 
 ### Security

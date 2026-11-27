@@ -11,7 +11,7 @@
 #
 # The package installs /Applications/Haul.app and then, as the owner of /opt/homebrew, installs or
 # upgrades python, deno and ffmpeg (instalador/scripts/postinstall). It refuses to start without
-# Homebrew. Its pages are in English and Spanish (instalador/resources/*.lproj); macOS Installer
+# Homebrew. Its pages are in English, Spanish and Japanese (instalador/resources/*.lproj); macOS Installer
 # shows the language of the Mac. The package itself is not signed: that needs an Apple Developer ID.
 
 set -euo pipefail
@@ -38,7 +38,7 @@ pkgbuild --root $TRABAJO/raiz --component-plist $TRABAJO/componente.plist \
     --install-location / --scripts instalador/scripts \
     $TRABAJO/Haul-component.pkg >/dev/null
 
-for idioma in en es; do
+for idioma in en es ja; do
     mkdir -p $TRABAJO/recursos/$idioma.lproj
     for f in instalador/resources/$idioma.lproj/*; do
         rellenar $f $TRABAJO/recursos/$idioma.lproj/${f:t}

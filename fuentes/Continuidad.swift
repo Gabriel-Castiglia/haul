@@ -165,7 +165,7 @@ enum MotorYtDlp {
         pedido.setValue("Haul/\(versionHaul)", forHTTPHeaderField: "User-Agent")
         let (datos, respuesta) = try await URLSession.shared.data(for: pedido)
         if let codigo = (respuesta as? HTTPURLResponse)?.statusCode, codigo != 200 {
-            throw Problema(texto: tr("GitHub respondió \(codigo).", "GitHub answered \(codigo)."))
+            throw Problema(texto: tr("GitHub respondió \(codigo).", "GitHub answered \(codigo).", "GitHub の応答: \(codigo)。"))
         }
         return datos
     }
@@ -181,12 +181,12 @@ enum MotorYtDlp {
         let (json, _) = try await URLSession.shared.data(for: pedido)
         guard let raizJSON = (try? JSONSerialization.jsonObject(with: json)) as? [String: Any],
               let etiqueta = raizJSON["tag_name"] as? String else {
-            throw Problema(texto: tr("No se pudo leer la respuesta de GitHub.", "GitHub's answer could not be read."))
+            throw Problema(texto: tr("No se pudo leer la respuesta de GitHub.", "GitHub's answer could not be read.", "GitHub の応答を読み取れませんでした。"))
         }
         guard SelfUpdate.isNewer(etiqueta, than: versionYtDlp) else { return (false, versionYtDlp) }
         guard esEtiqueta(etiqueta) else {
             throw Problema(texto: tr("La versión publicada de yt-dlp tiene un nombre inesperado: \(etiqueta).",
-                                     "The published yt-dlp version has an unexpected name: \(etiqueta)."))
+                                     "The published yt-dlp version has an unexpected name: \(etiqueta).", "公開されている yt-dlp のバージョン名が想定外です: \(etiqueta)。"))
         }
         var urlExe: URL?, urlSumas: URL?
         for a in raizJSON["assets"] as? [[String: Any]] ?? [] {
@@ -195,7 +195,7 @@ enum MotorYtDlp {
         }
         guard let urlExe, let urlSumas else {
             throw Problema(texto: tr("La versión \(etiqueta) de yt-dlp no trae \(ejecutable) y \(sumas).",
-                                     "yt-dlp \(etiqueta) does not include \(ejecutable) and \(sumas)."))
+                                     "yt-dlp \(etiqueta) does not include \(ejecutable) and \(sumas).", "yt-dlp \(etiqueta) には \(ejecutable) と \(sumas) が含まれていません。"))
         }
         let ruta = try await instalar(en: raiz, etiqueta: etiqueta, urlExe: urlExe, urlSumas: urlSumas)
         rutaYtDlp = ruta
@@ -211,19 +211,19 @@ enum MotorYtDlp {
         try fm.createDirectory(at: temporal, withIntermediateDirectories: true)
         do {
             guard let esperado = SelfUpdate.hash(for: ejecutable, in: String(decoding: try await pedir(urlSumas), as: UTF8.self)) else {
-                throw Problema(texto: tr("La lista de sumas de comprobación no nombra \(ejecutable).", "The checksum list does not name \(ejecutable)."))
+                throw Problema(texto: tr("La lista de sumas de comprobación no nombra \(ejecutable).", "The checksum list does not name \(ejecutable).", "チェックサムの一覧に \(ejecutable) がありません。"))
             }
             let exe = temporal.appendingPathComponent(ejecutable)
             try await pedir(urlExe).write(to: exe)
             guard try SelfUpdate.sha256(of: exe) == esperado else {
                 throw Problema(texto: tr("\(ejecutable) no coincide con su suma de comprobación: se borró sin ejecutarlo.",
-                                         "\(ejecutable) does not match its checksum: it was deleted without running it."))
+                                         "\(ejecutable) does not match its checksum: it was deleted without running it.", "\(ejecutable) がチェックサムと一致しないため、実行せずに削除しました。"))
             }
             // The checked file is run once: it must answer the version it was published as.
             let dice = await versionDe(exe.path)
             guard let dice, SelfUpdate.parts(dice) == SelfUpdate.parts(etiqueta) else {
                 throw Problema(texto: tr("La copia descargada de yt-dlp dice ser la versión «\(dice ?? "?")», no la \(etiqueta).",
-                                         "The downloaded yt-dlp says it is version \"\(dice ?? "?")\", not \(etiqueta)."))
+                                         "The downloaded yt-dlp says it is version \"\(dice ?? "?")\", not \(etiqueta).", "ダウンロードした yt-dlp は、バージョン \(etiqueta) ではなく「\(dice ?? "?")」と応答しました。"))
             }
             try Data((esperado + "  " + ejecutable + "\n").utf8).write(to: temporal.appendingPathComponent(marca))
             let final = raiz.appendingPathComponent(etiqueta, isDirectory: true)

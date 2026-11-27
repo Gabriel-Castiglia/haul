@@ -5,9 +5,9 @@
 
 <p align="center"><img src="docs/images/main-dark-es.png" width="420" alt="La ventana de Haul, oscura"></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.7.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 1.8.0 · GPL-2.0-only · hecho y probado con yt-dlp 2026.11.23
 
-[English](README.md) · Español
+[English](README.md) · Español · [日本語](README.ja.md)
 
 Versión para Windows: <https://github.com/Gabriel-Castiglia/haul-windows>
 
@@ -18,8 +18,8 @@ Manual en PDF: [`docs/Haul-manual-es.pdf`](docs/Haul-manual-es.pdf)
 Haul es una aplicación de macOS que hace de interfaz de
 [yt-dlp](https://github.com/yt-dlp/yt-dlp). La aplicación arma el comando, muestra
 el progreso y organiza una cola de descargas. El trabajo lo hacen yt-dlp, incluido en la aplicación
-en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés y en castellano, y se elige en el menú Language (Idioma cuando
-la app está en castellano). La primera vez arranca en inglés y después recuerda la elección. La
+en una versión fija y verificada, y ffmpeg, instalado con Homebrew. La interfaz está en inglés, castellano y japonés, y se elige en el menú Language (Idioma cuando
+la app está en castellano, 言語 en japonés). La primera vez arranca en inglés y después recuerda la elección. La
 ventana puede ser clara, oscura o seguir a macOS, en uno de doce colores.
 
 ## Requisitos
@@ -38,7 +38,7 @@ hay que instalar nada a mano.
 
 Descarga `Haul-<versión>.pkg` de la
 [última versión publicada](https://github.com/Gabriel-Castiglia/haul/releases/latest) y ábrelo. El instalador está
-en inglés o en castellano, según el idioma de la Mac. Comprueba que Homebrew esté instalado y, si no
+en inglés, castellano o japonés, según el idioma de la Mac. Comprueba que Homebrew esté instalado y, si no
 lo está, se detiene con un aviso; después instala `Haul.app` en `/Applications`, cerrando antes una
 copia abierta, e instala Python, deno y ffmpeg con Homebrew, o los actualiza si ya están. La primera
 vez ese paso puede tardar unos minutos. Instalar un paquete más nuevo actualiza Haul y conserva sus
@@ -50,7 +50,7 @@ aviso sobre `Haul-<versión>.pkg`, haz clic en Abrir igualmente y confirma. La a
 avisos. El archivo `SHA256SUMS.txt` de cada versión permite comprobar antes la descarga:
 
 ```
-shasum -a 256 Haul-1.7.0.pkg
+shasum -a 256 Haul-1.8.0.pkg
 ```
 
 Para desinstalar, cierra Haul y arrastra `/Applications/Haul.app` a la Papelera. Python, deno y ffmpeg
@@ -156,23 +156,23 @@ sus episodios.
 
 | Ruta | Contenido |
 |---|---|
-| `fuentes/Haul.swift` | Código de la aplicación (SwiftUI, un solo archivo) |
+| `fuentes/Haul.swift` | Código de la aplicación (SwiftUI) |
 | `assets/icon.svg` | El dibujo del ícono (en sus doce colores lo arma la herramienta de íconos del autor, la misma de la versión para Windows) |
 | `icono/icono-1024.png` | El ícono de la app, en su naranja de siempre, origen de todos los tamaños |
 | `icono/accents/` | El ícono en cada color, para el Dock |
 | `docs/images/` | Imágenes de la ventana |
 | `scripts/instalar.sh` | Dependencias, compilación e instalación |
 | `scripts/paquete.sh` | Arma el paquete de instalación `build/Haul-<versión>.pkg` |
-| `instalador/` | Definición del paquete: `Distribution.xml`, los scripts que cierran Haul e instalan los paquetes de Homebrew, y las páginas en inglés y en castellano |
+| `instalador/` | Definición del paquete: `Distribution.xml`, los scripts que cierran Haul e instalan los paquetes de Homebrew, y las páginas en inglés, castellano y japonés |
 | `scripts/compilar.sh` | Compilación y firma en `build/` |
 | `scripts/firma.sh` | Identidad de firma local (la carga `compilar.sh`) |
 | `scripts/manual.sh` | Genera los manuales en PDF a partir de los README |
 | `scripts/actualizar-yt-dlp.sh` | Reemplaza el yt-dlp incluido por otra versión verificada |
 | `plugins/haul/` | Complemento de extractores propio de Haul para yt-dlp, para enlaces que la versión incluida no maneja |
 | `vendor/yt-dlp/` | Copia incluida de yt-dlp 2026.11.23, con código fuente, sumas, firma y licencias |
-| `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf` | Manuales en PDF, en castellano y en inglés |
+| `docs/Haul-manual-es.pdf`, `docs/Haul-manual-en.pdf`, `docs/Haul-manual-ja.pdf` | Manuales en PDF, en castellano, inglés y japonés |
 | `docs/manual.css` | Estilo de los manuales |
-| `README.es.md`, `README.md` | Esta documentación, en castellano y en inglés |
+| `README.es.md`, `README.md`, `README.ja.md` | Esta documentación, en castellano, inglés y japonés |
 | `CHANGELOG.md` | Historial de versiones |
 
 La carpeta `build/` se genera al compilar y no forma parte del repositorio.
@@ -203,7 +203,7 @@ al abrirse.
 
 El menú Apariencia, que también está detrás del botón de la paleta de la ventana, elige claro, oscuro o
 como macOS, y uno de doce colores. El color elegido pinta los botones, las casillas y lo seleccionado, y
-el ícono del Dock mientras Haul está abierto: el águila vuela sobre un fondo de ese color. El ícono del
+el ícono del Dock mientras Haul está abierto: el fondo del ícono toma ese color. El ícono del
 Finder y de Launchpad sigue naranja, porque cambiarlo rompería la firma de la app. Un Haul que ya se
 usó conserva la ventana oscura que tenía; una instalación nueva sigue a macOS.
 
@@ -285,6 +285,12 @@ separada por tabuladores:
 
 Los instrumentales en pausa se frenan con `--match-filters`, así yt-dlp no descarga nada hasta que se
 permiten.
+
+yt-dlp corre siempre con `--ignore-config` y no lee ningún archivo de configuración, así que un `yt-dlp.conf`
+dejado en la carpeta de descarga no puede agregar opciones como `--exec`. Carga solo los complementos de Haul
+(`--no-plugin-dirs` y después la carpeta `plugins` de Haul con `--plugin-dirs`). Por eso tampoco se aplican los
+archivos de configuración de yt-dlp del propio usuario. Las miniaturas se muestran solo desde direcciones `http` y
+`https`.
 
 Algunos enlaces fallan dentro del propio yt-dlp, incluso en su última versión: una página de video
 que ahora pide una cuenta aunque su reproductor embebido no la pide, y páginas cuyos datos se

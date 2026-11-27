@@ -2,6 +2,7 @@
 # manual.sh: builds the PDF manuals from the READMEs.
 #   README.md     -> docs/Haul-manual-en.pdf
 #   README.es.md  -> docs/Haul-manual-es.pdf
+#   README.ja.md  -> docs/Haul-manual-ja.pdf
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: October 19, 2026
@@ -22,7 +23,7 @@ cd "$RAIZ"
 # (scripts/compilar.sh and vendor/yt-dlp/VERSION). Muelle's manuals went out three versions behind.
 VERSION=$(sed -n 's/^VERSION="\(.*\)"/\1/p' scripts/compilar.sh)
 YTDLP=$(<vendor/yt-dlp/VERSION)
-for f in README.md:version README.es.md:versión; do
+for f in README.md:version README.es.md:versión README.ja.md:バージョン; do
     grep -q "· ${f#*:} $VERSION ·.*yt-dlp $YTDLP" "${f%%:*}" || { echo "${f%%:*} does not say \"${f#*:} $VERSION\" and yt-dlp $YTDLP under its title" >&2; exit 1 }
 done
 
@@ -79,3 +80,4 @@ generar() {
 
 generar README.md    en "Haul · Manual"            docs/Haul-manual-en.pdf
 generar README.es.md es "Haul · Manual de usuario" docs/Haul-manual-es.pdf
+generar README.ja.md ja "Haul · ユーザーマニュアル"  docs/Haul-manual-ja.pdf
